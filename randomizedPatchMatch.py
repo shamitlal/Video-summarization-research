@@ -8,7 +8,7 @@ class PatchMatch:
 
     def __init__(self, Img_A, Img_B):
         self.boxsize = 7
-        self.iterations = 5
+        self.iterations = 4
         self.infinity = 100000000000000
         self.alpha = 0.5
         self.boxsizeBy2 = self.boxsize/2
@@ -22,6 +22,8 @@ class PatchMatch:
         self.nnf_y = np.zeros((self.Img_A.shape[0], self.Img_A.shape[1]))
         self.nnf_D = np.zeros((self.Img_A.shape[0], self.Img_A.shape[1]))
 
+    def getAbsoluteValue(self, ax):
+        return 1.0*math.sqrt(np.sum(np.square(ax)))
     # calculate offset in terms of sum of square differences
     def cal_offset(self, ax, ay, bx, by):
         box_A = (int(ax-self.boxsizeBy2), int(ay-self.boxsizeBy2), int(ax+self.boxsizeBy2), int(ay+self.boxsizeBy2))
@@ -32,9 +34,11 @@ class PatchMatch:
         self.patch_B = self.Img_B[box_B[0]:box_B[2]+1 , box_B[1]:box_B[3]+1 , :]
         # print "patch shapes = ",self.patch_A.shape, self.patch_B.shape, ax, ay, bx, by
         # print "boxes = ",box_A, box_B
-        self.abs_diff = np.array(self.patch_A, dtype=np.float32) - np.array(self.patch_B, dtype = np.float32)
-        self.ssd = math.sqrt(np.sum(np.square(self.abs_diff)))
-        return self.ssd    
+        # self.abs_diff = np.array(self.patch_A, dtype=np.float32) - np.array(self.patch_B, dtype = np.float32)
+        # self.ssd = math.sqrt(np.sum(np.square(self.abs_diff)))
+        self.ssd = (np.sum(np.multiply(self.patch_A, self.patch_B))/(self.getAbsoluteValue(self.patch_A)*self.getAbsoluteValue(self.patch_B)))
+        #print "ssd:",self.ssd
+        return 1000.0*(1.0-self.ssd)    
 
     #Random initialization by sampling from uniform distribution for each pixel in image A
     def uniform_random_init_nnf(self):
@@ -161,8 +165,8 @@ class PatchMatch:
 
 if __name__ == "__main__":
 
-    Img_A = np.array(Image.open("bike_a.jpg"))
-    Img_B = np.array(Image.open("bike_b.jpg"))
+    Img_A = np.array(Image.open("bike_b.jpg"), dtype = np.float64)
+    Img_B = np.array(Image.open("bike_b.jpg"), dtype = np.float64)
 
 
     test=PatchMatch(Img_A, Img_B)
