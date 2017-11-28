@@ -1,1 +1,0 @@
-# Video-summarization-research
