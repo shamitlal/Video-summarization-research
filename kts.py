@@ -184,9 +184,9 @@ class KTS:
 
 	def compute_optimal_change_points(self):
 		min_variance = infinity
-		print "======================="
+		print "=============================="
 		print "compute_optimal_change_points"
-		print "======================="
+		print "=============================="
 		for i in range(0,self.max_change_points+1):
 			print i,self.L[i][self.total_frames-1],self.C*self.g(i+1,self.total_frames)
 			if min_variance > self.L[i][self.total_frames-1] + self.C*self.g(i+1,self.total_frames):
@@ -230,9 +230,11 @@ class KTS:
 if __name__=="__main__":
 	
 	for video in os.listdir("dataset/videos"):
-		if('1' in video or '2' in video):continue
+		#if('1' in video or '2' in video):continue
 		if(video[0]=='.'):continue
-		utils.convert_video_to_frames("dataset/videos/" + video,"dataset/video_frames/" + video.split('.')[0])
+		#utils.convert_video_to_frames("dataset/videos/" + video,"dataset/video_ffmpeg")
+		utils.extract_audio_from_video("dataset/videos/",video)
+		'''
 		vgg19_layer_generator.generateLayersForFramesInGivenVideo("dataset/video_frames/" + video.split('.')[0],"dataset/frame_numpy_arrays")
 		
 		checkpoint = 0
@@ -274,6 +276,6 @@ if __name__=="__main__":
 		print kts.segment_list
 		kts.save_segments(video.split('.')[0])	
 		
-		'''
+		
 		utils.convert_frames_to_video('dataset/video_segments/' + video.split('.')[0] + '/segment_0')	
 		'''

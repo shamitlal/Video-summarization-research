@@ -69,7 +69,8 @@ def load_image2(path, height=None, width=None):
 
 
 def convert_video_to_frames(input_video,output_directory):
-    #os.system("ffmpeg -i {0} -vf fps=1 output_directory/thumb%04d.jpg -hide_banner".format(input_video))
+    os.system("ffmpeg -i {0} -vf fps=1 {1}/thumb%04d.jpg -hide_banner".format(input_video,output_directory))
+    '''
     if not os.path.isdir(output_directory):
         os.system('mkdir ' + output_directory)
     cap = cv2.VideoCapture(input_video)
@@ -111,6 +112,13 @@ def convert_frames_to_video(input_directory):
 
     cv2.destroyAllWindows()
     video.release()
+    '''
+
+def extract_audio_from_video(video_base_dir,video_name):
+    audio_base_dir = "dataset/audio/"
+    audio_dir = audio_base_dir + video_name.split(".")[0] + ".wav"
+    os.system("ffmpeg -i {0} -f wav -ab 192000 -vn {1}".format(video_base_dir+video_name,audio_dir))
+
 
 def test():
     img = skimage.io.imread("./test_data/starry_night.jpg")
