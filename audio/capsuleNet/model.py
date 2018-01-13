@@ -82,14 +82,17 @@ class CapsuleNet:
     def init(self):
         
         # Get graph inputs
+        print("Building the model input")
         self.build_model_input()
 
         # Create the first convolution and the CapsNet
+        print("building the capsules")
         self.tf_caps1, self.tf_caps2 = self.build_main_network()
 
         one_hot_labels = tf.one_hot(self.tf_labels, depth=self.NB_OUTPUT_LABELS)
 
         # Build the loss
+        print("building the loss")
         loss = self.build_loss(
             self.tf_caps2, self.tf_labels,one_hot_labels)
 
@@ -249,53 +252,52 @@ class CapsuleNet:
 
     def train_model(self):
         print("train_model")
-        music  = glob.glob("../../dataset/audio/music/*.mp3")
-        speech = glob.glob("../../dataset/audio/speech/*.mp3")
+        music_train  = glob.glob("../../dataset/audio/music/train/*.mp3")
+        speech_train = glob.glob("../../dataset/audio/speech/train/*.mp3")
 
-        music_data = [(element,1) for element in music]
-        speech_data = [(element,0) for element in speech]
+        music_train_data = [(element,1) for element in music_train]
+        speech_train_data = [(element,0) for element in speech_train]
 
-        music_train_size = 80*len(music)//100
-        music_validation_size = len(music) - music_train_size
-        
-        speech_train_size = 80*len(speech)//100
-        speech_validation_size = len(speech) - speech_train_size
+        data_train = music_train_data + speech_train_data
 
-        print(music)
-        print(speech)
+        music_validation  = glob.glob("../../dataset/audio/music/validation/*.mp3")
+        speech_validation = glob.glob("../../dataset/audio/speech/validation/*.mp3")
 
-        print(music_train_size)
-        print(music_validation_size)
+        music_validation_data = [(element,1) for element in music_validation]
+        speech_validation_data = [(element,0) for element in speech_validation]
 
-        print(speech_train_size)
-        print(speech_validation_size)
+        data_validation = music_validation_data + speech_validation_data
 
-        iterations = (music_train_size + speech_train_size)//self.batch_size
+
+        print("TRAIN")
+        print(music_train)
+        print(speech_train)
+        print(data_train)
+        print("VALIDATION")
+        print(music_validation)
+        print(speech_validation)
+        print(data_validation)
+
+
+        iterations = (len(data_train))//self.batch_size
 
         self.init()
 
         epoch = 0
 
         while(epoch<self.number_of_epochs):
-            random.shuffle(music_data)
-            random.shuffle(speech_data)
+            random.shuffle(data_train)
 
-            music_train,music_validation = tf.split(music,[music_train_size,music_validation_size],axis=0)
-            speech_train,speech_validation = tf.split(speech,[speech_train_size,speech_validation_size],axis=0)
-    
-            print(music_train.shape)
-            print(music_validation.shape)
-
-            train = music_train + speech_train
-            validation = music_validation + speech_validation
-
-            validation_images,validation_labels = utils.load_data(self.image_rows,self.image_columns,self.image_channels,validation)
+            validation_images,validation_labels = utils.load_data(self.image_rows,self.image_columns,self.image_channels,data_validation)
 
             for i in range(iterations):
-                train_batch = train[i:i+self.batch_size]
+                train_batch = data_train[i:i+self.batch_size]
 
                 images,labels = self.load_data(self.image_rows,self.image_columns,self.image_channels,train_batch)
-                #self.optimize(images,labels)
+                print("Training batch data")
+                print(images)
+                print(labels)
+                self.optimize(images,labels)
 
                 if(i%10==0):
                     self.save_session(i)
