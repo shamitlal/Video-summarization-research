@@ -199,10 +199,14 @@ class CapsuleNet:
     def init_session(self):
        
         #  Create session
+        print "creating saver"
         self.saver = tf.train.Saver()
+        print "creating sesssion"
         self.sess = tf.Session()
+        print "Initializing global variables"
         # Init variables
         self.sess.run(tf.global_variables_initializer())
+        print "Initialized global variables"
         # Tensorboard
         #self.tf_tensorboard = tf.summary.merge_all()
         
@@ -284,16 +288,18 @@ class CapsuleNet:
         self.init()
 
         epoch = 0
-
+        print "Running epochs now"
         while(epoch<self.number_of_epochs):
+            epoch+=1
+            print "Shuffling training data"
             random.shuffle(data_train)
-
+            print "Loading validation data"
             validation_images,validation_labels = utils.load_data(self.image_rows,self.image_columns,self.image_channels,data_validation)
 
             for i in range(iterations):
                 train_batch = data_train[i:i+self.batch_size]
-
-                images,labels = self.load_data(self.image_rows,self.image_columns,self.image_channels,train_batch)
+                print "Loading batch data"
+                images,labels = utils.load_data(self.image_rows,self.image_columns,self.image_channels,train_batch)
                 print("Training batch data")
                 print(images)
                 print(labels)

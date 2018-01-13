@@ -14,6 +14,6 @@
     "caps2_nb_capsules":2,
     "routing_steps":4,
     "learning_rate":0.1,
-    "batch_size":32
+    "batch_size":1
 
 }
