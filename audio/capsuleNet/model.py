@@ -256,32 +256,13 @@ class CapsuleNet:
 
     def train_model(self):
         print("train_model")
-        music_train  = glob.glob("../../dataset/audio/music/train/*.mp3")
-        speech_train = glob.glob("../../dataset/audio/speech/train/*.mp3")
 
-        music_train_data = [(element,1) for element in music_train]
-        speech_train_data = [(element,0) for element in speech_train]
+        #data_train && data_validation are glob list of file_names
+        data_train,data_validation = utils.generate_and_spilt_spectograms_for_complete_data('../../dataset/audio')
 
-        data_train = music_train_data + speech_train_data
-
-        music_validation  = glob.glob("../../dataset/audio/music/validation/*.mp3")
-        speech_validation = glob.glob("../../dataset/audio/speech/validation/*.mp3")
-
-        music_validation_data = [(element,1) for element in music_validation]
-        speech_validation_data = [(element,0) for element in speech_validation]
-
-        data_validation = music_validation_data + speech_validation_data
-
-
-        print("TRAIN")
-        print(music_train)
-        print(speech_train)
-        print(data_train)
-        print("VALIDATION")
-        print(music_validation)
-        print(speech_validation)
-        print(data_validation)
-
+        print "Loading validation data"
+        #will load the images from file_names for complete validation_set
+        validation_images,validation_labels = utils.load_data(self.image_rows,self.image_columns,self.image_channels,data_validation)
 
         iterations = (len(data_train))//self.batch_size
 
@@ -293,8 +274,6 @@ class CapsuleNet:
             epoch+=1
             print "Shuffling training data"
             random.shuffle(data_train)
-            print "Loading validation data"
-            validation_images,validation_labels = utils.load_data(self.image_rows,self.image_columns,self.image_channels,data_validation)
 
             for i in range(iterations):
                 train_batch = data_train[i:i+self.batch_size]
