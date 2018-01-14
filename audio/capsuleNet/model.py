@@ -112,12 +112,21 @@ class CapsuleNet:
         grad_conv_w_1, grad_conv_b_1, grad_conv_w_2, grad_conv_b_2 = tf.gradients(ys=self.tf_margin_loss, 
             xs=[self.conv_w_1, self.conv_b_1, self.conv_w_2, self.conv_b_2])
 
+        grad_caps_1 = tf.gradients(ys=self.tf_margin_loss, xs=[tf.get_collection(tf.GraphKeys.VARIABLES, 'CAPSULE1')[0]])
+        
+        grad_caps_w_2 = tf.gradients(ys=self.tf_margin_loss, 
+            xs=[self.caps2_w])
+
         tf.summary.scalar('margin_loss', self.tf_margin_loss)
         tf.summary.scalar('accuracy', self.tf_accuracy)
         variable_summaries(grad_conv_w_1, 'grad_conv_w_1')
         variable_summaries(grad_conv_b_1, 'grad_conv_b_1')
         variable_summaries(grad_conv_w_2, 'grad_conv_w_2')
         variable_summaries(grad_conv_b_2, 'grad_conv_b_2')
+        variable_summaries(grad_caps_1, 'grad_caps_1')
+        variable_summaries(tf.get_collection(tf.GraphKeys.VARIABLES, 'CAPSULE1')[0], 'caps_1')
+        variable_summaries(self.caps2_w, 'caps_2_w')
+        variable_summaries(grad_caps_w_2, 'grad_caps_w_2')
         #self.tf_test = tf.random_uniform([2], minval=0, maxval=None, dtype=tf.float32, seed=None, name="tf_test")
         #bring from model_base
         self.init_session()
@@ -151,7 +160,7 @@ class CapsuleNet:
             kernel = self.caps1_size) #9
         
         # Layer 5 : second capsules layer used to predict the output
-        caps2 = fully_connected_caps_layer(
+        caps2, self.caps2_w = fully_connected_caps_layer(
             input_layer=caps1,
             capsules_size=self.caps2_vec_len, #16
             nb_capsules=self.caps2_nb_capsules, #10
@@ -200,7 +209,6 @@ class CapsuleNet:
         })
 
         print "absolute_capslen: " + str(absolute_capslen)
-        print(tf.get_collection(tf.GraphKeys.VARIABLES, 'CAPSULE1')[0])
         if tb_save:
             # Write data to tensorboard
             self.train_writer.add_summary(summary, self.train_writer_it)

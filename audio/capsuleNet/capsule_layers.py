@@ -111,7 +111,7 @@ def fully_connected_caps_layer(input_layer, capsules_size, nb_capsules, iteratio
     # [nb_capsules_p, nb_capsules, 1, 1]
     b_ij = tf.zeros(shape=[nb_capsules_p, nb_capsules, 1, 1], dtype=np.float32)
 
-    return routing(u_hat, b_ij, nb_capsules, nb_capsules_p, iterations=iterations)
+    return routing(u_hat, b_ij, nb_capsules, nb_capsules_p, iterations=iterations), w_ij
 
 def squash(vector):
     """
