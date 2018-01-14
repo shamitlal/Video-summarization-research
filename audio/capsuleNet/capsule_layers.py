@@ -113,6 +113,7 @@ def fully_connected_caps_layer(input_layer, capsules_size, nb_capsules, iteratio
 
     return routing(u_hat, b_ij, nb_capsules, nb_capsules_p, iterations=iterations), w_ij
 
+
 def squash(vector):
     """
         Squashing function corresponding to Eq. 1
