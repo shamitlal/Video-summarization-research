@@ -77,6 +77,8 @@ class CapsuleNet:
         #self.test_log_name = hyperparameters['test_log_name']
 
         self.number_of_epochs = 10000000
+        self.train_log_name = './logs/train'
+        self.test_log_name = './logs/test'
 
 
     def init(self):
@@ -198,6 +200,10 @@ class CapsuleNet:
 
     def init_session(self):
        
+        # Tensorboard
+        self.tf_tensorboard = tf.summary.merge_all()
+        self.train_writer = tf.summary.FileWriter(self.train_log_name, self.sess.graph)
+        self.test_writer = tf.summary.FileWriter(self.test_log_name)
         #  Create session
         print "creating saver"
         self.saver = tf.train.Saver()
@@ -207,26 +213,42 @@ class CapsuleNet:
         # Init variables
         self.sess.run(tf.global_variables_initializer())
         print "Initialized global variables"
-        # Tensorboard
-        #self.tf_tensorboard = tf.summary.merge_all()
+
+        if self.load_session(self):
+            print "Load Success"
+        else:
+            print "Load Failed."
         
-        #self.train_writer = tf.summary.FileWriter(self.train_log_name, self.sess.graph)
-        #self.test_writer = tf.summary.FileWriter(self.test_log_name)
 
-        #self.train_writer_it = 0
-        #self.test_writer_it = 0
+        self.train_writer_it = 0
+        self.test_writer_it = 0
 
 
-    def save_session(step):
-        model_dir = "../../dataset/trained_models/capsuleNet.model"
+    def save_session(self, step):
+        checkpoint_dir = "./checkpoint"
+        model_name = "capsuleNet.model"
 
         if not os.path.exists(checkpoint_dir):
             os.makedirs(checkpoint_dir)
 
         self.saver.save(self.sess,
-                        model_dir,
+                        os.path.join(checkpoint_dir, model_name),
                         global_step=step)
 
+
+
+    def load_session(self):
+        print(" [*] Reading checkpoint...")
+        checkpoint_dir = "./checkpoint"
+        model_name = "capsuleNet.model"
+        
+        ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
+        if ckpt and ckpt.model_checkpoint_path:
+            ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
+            self.saver.restore(self.sess, os.path.join(checkpoint_dir, ckpt_name))
+            return True
+        else:
+            return False
 
 
     def print_validation_loss(images,labels):
@@ -258,7 +280,7 @@ class CapsuleNet:
         print("train_model")
 
         #data_train && data_validation are glob list of file_names
-        data_train,data_validation = utils.generate_and_spilt_spectograms_for_complete_data('../../dataset/audio')
+        data_train,data_validation = utils.generate_and_split_spectograms_for_complete_data('../../dataset/audio')
 
         print "Loading validation data"
         #will load the images from file_names for complete validation_set
@@ -269,6 +291,7 @@ class CapsuleNet:
         self.init()
 
         epoch = 0
+        counter = 0
         print "Running epochs now"
         while(epoch<self.number_of_epochs):
             epoch+=1
@@ -283,10 +306,11 @@ class CapsuleNet:
                 print(images)
                 print(labels)
                 self.optimize(images,labels)
-
-                if(i%10==0):
-                    self.save_session(i)
+                counter+=1
+                if np.mod(counter,10)==2:
+                    self.save_session(self, counter)
                     print_train_loss(images,labels)
                     print_validation_loss(validation_images,validation_labels)
+
 
                     #tensorboard graphs
