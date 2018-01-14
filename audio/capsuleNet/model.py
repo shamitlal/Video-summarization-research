@@ -151,7 +151,7 @@ class CapsuleNet:
             kernel = self.caps1_size) #9
         
         # Layer 5 : second capsules layer used to predict the output
-        caps2 = fully_connected_caps_layer(
+        caps2,self.cap2_weights = fully_connected_caps_layer(
             input_layer=caps1,
             capsules_size=self.caps2_vec_len, #16
             nb_capsules=self.caps2_nb_capsules, #10
@@ -192,8 +192,8 @@ class CapsuleNet:
 
 
     def optimize(self, images, labels, tb_save=True):
-        tensors = [self.tf_optimizer, self.tf_margin_loss, self.tf_accuracy, self.tf_tensorboard, self.absolute_capsules_length]
-        _, loss, acc, summary, absolute_capslen = self.sess.run(tensors,
+        tensors = [self.tf_optimizer, self.tf_margin_loss, self.tf_accuracy, self.tf_tensorboard, self.absolute_capsules_length,self.cap2_weights]
+        _, loss, acc, summary, absolute_capslen, cap2_weights = self.sess.run(tensors,
             feed_dict={
             self.tf_images: images,
             self.tf_labels: labels
@@ -201,6 +201,7 @@ class CapsuleNet:
 
         print "absolute_capslen: " + str(absolute_capslen)
         print(tf.get_collection(tf.GraphKeys.VARIABLES, 'CAPSULE1')[0])
+        print(cap2_weights)
         if tb_save:
             # Write data to tensorboard
             self.train_writer.add_summary(summary, self.train_writer_it)
