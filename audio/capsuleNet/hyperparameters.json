@@ -1,19 +1,19 @@
 {
-    "image_rows":48,
-    "image_columns":64,
+    "image_rows":120,
+    "image_columns":120,
     "image_channels":3,
-    "conv1_size":9,
-    "conv1_filters":256,
-    "conv2_size":9,
-    "conv2_filters":9,
+    "conv1_size":5,
+    "conv1_filters":128,
+    "conv2_size":5,
+    "conv2_filters":128,
     "drop_out_prob":0.5,
     "caps1_size":6,
     "caps1_vec_len":8,
-    "caps1_nb_capsules":32,
+    "caps1_nb_capsules":64,
     "caps2_vec_len":16,
     "caps2_nb_capsules":2,
     "routing_steps":4,
-    "learning_rate":0.005,
-    "batch_size":9
+    "learning_rate":0.05,
+    "batch_size":8
 
 }

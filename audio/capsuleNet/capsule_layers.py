@@ -89,7 +89,7 @@ def fully_connected_caps_layer(input_layer, capsules_size, nb_capsules, iteratio
     # w_ij: Used to compute u_hat by multiplying the output ui of a capsule in the layer below
     # with this matrix
     # [nb_capsules_p, nb_capsules, len_v_j, len_u_i]
-    _init = tf.random_normal_initializer(stddev=0.01, seed=0)
+    _init = tf.random_normal_initializer(stddev=0.01)
     _shape = (nb_capsules_p, nb_capsules, len_v_j, len_u_i)
     w_ij = tf.get_variable('weight', shape=_shape, dtype=tf.float32, initializer=_init)
 

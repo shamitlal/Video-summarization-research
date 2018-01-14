@@ -5,7 +5,7 @@ import numpy as np
 from capsule_layers import conv_caps_layer, fully_connected_caps_layer
 import tensorflow as tf
 import json,glob,random
-from layers import fc,create_conv
+from layers import fc,create_conv,variable_summaries
 import utils
 import os
 import time
@@ -34,7 +34,7 @@ import time
 class CapsuleNet:
 
     # Numbers of label to predict
-    NB_OUTPUT_LABELS = 2
+    #NB_OUTPUT_LABELS = 2
 
 
 
@@ -80,6 +80,7 @@ class CapsuleNet:
         self.number_of_epochs = 10000000
         self.train_log_name = './logs/train'
         self.test_log_name = './logs/test'
+        self.NB_OUTPUT_LABELS=2
 
 
     def init(self):
@@ -105,11 +106,18 @@ class CapsuleNet:
         # Build optimizer
         optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
         self.tf_optimizer = optimizer.minimize(self.tf_margin_loss, global_step=tf.Variable(0, trainable=False))
+        #training_operation = slim.learning.create_train_op(self.tf_margin_loss, optimizer,summarize_gradients=True)
 
         # Log value into tensorboard
+        grad_conv_w_1, grad_conv_b_1, grad_conv_w_2, grad_conv_b_2 = tf.gradients(ys=self.tf_margin_loss, 
+            xs=[self.conv_w_1, self.conv_b_1, self.conv_w_2, self.conv_b_2])
+
         tf.summary.scalar('margin_loss', self.tf_margin_loss)
         tf.summary.scalar('accuracy', self.tf_accuracy)
-
+        variable_summaries(grad_conv_w_1, 'grad_conv_w_1')
+        variable_summaries(grad_conv_b_1, 'grad_conv_b_1')
+        variable_summaries(grad_conv_w_2, 'grad_conv_w_2')
+        variable_summaries(grad_conv_b_2, 'grad_conv_b_2')
         #self.tf_test = tf.random_uniform([2], minval=0, maxval=None, dtype=tf.float32, seed=None, name="tf_test")
         #bring from model_base
         self.init_session()
@@ -121,16 +129,16 @@ class CapsuleNet:
         # Images image_rows*image_columns*image_channels
         self.tf_images = tf.placeholder(tf.float32, [self.batch_size, self.image_rows, self.image_columns, self.image_channels], name='images')
         self.tf_labels = tf.placeholder(tf.int64, [self.batch_size], name='labels')
-
+        tf.summary.image("input_img", self.tf_images, max_outputs=self.batch_size)
 
     def build_main_network(self):
         #Layer1 : conv1
         shape1 = (self.conv1_size, self.conv1_size, self.image_channels, self.conv1_filters)
-        conv1 = create_conv(self.tf_images, shape1, relu=True, max_pooling=False, padding='VALID')
+        conv1, self.conv_w_1, self.conv_b_1 = create_conv('1', self.tf_images, shape1, relu=True, max_pooling=False, padding='VALID')
         
         # Layer 2 : conv2
         shape2 = (self.conv2_size, self.conv2_size, self.conv1_filters, self.conv2_filters)
-        conv2 = create_conv(conv1, shape2, relu=True, max_pooling=False, padding='VALID')
+        conv2, self.conv_w_2, self.conv_b_2 = create_conv('2', conv1, shape2, relu=True, max_pooling=False, padding='VALID')
         
         #Layer 3 : dropout
         conv2 = tf.nn.dropout(conv2, keep_prob=self.conv_2_dropout)
@@ -216,10 +224,10 @@ class CapsuleNet:
         self.sess.run(tf.global_variables_initializer())
         print "Initialized global variables"
 
-        if self.load_session():
-            print "Load Success"
-        else:
-            print "Load Failed."
+        # if self.load_session():
+        #     print "Load Success"
+        # else:
+        #     print "Load Failed."
         
 
         self.train_writer_it = 0
