@@ -198,7 +198,9 @@ class CapsuleNet:
             self.tf_images: images,
             self.tf_labels: labels
         })
+
         print "absolute_capslen: " + str(absolute_capslen)
+        print(tf.get_collection(tf.GraphKeys.VARIABLES, 'CAPSULE1')[0])
         if tb_save:
             # Write data to tensorboard
             self.train_writer.add_summary(summary, self.train_writer_it)

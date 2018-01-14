@@ -15,7 +15,7 @@ def conv_caps_layer(input_layer, capsules_size, nb_filters, kernel, stride=2):
     # "In convolutional capsule layers each unit in a capsule is a convolutional unit.
     # Therefore, each capsule will output a grid of vectors rather than a single vector output."
     capsules = tf.contrib.layers.conv2d(
-        input_layer, nb_filters * capsules_size, kernel, stride, padding="VALID")
+        input_layer, nb_filters * capsules_size, kernel, stride, padding="VALID",scope="CAPSULE1")
     # conv shape: [?, kernel, kernel, nb_filters]
     shape = capsules.get_shape().as_list()
     capsules = tf.reshape(capsules, shape=(-1, np.prod(shape[1:3]) * nb_filters, capsules_size, 1))
