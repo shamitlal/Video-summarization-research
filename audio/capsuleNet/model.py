@@ -7,7 +7,8 @@ import tensorflow as tf
 import json,glob,random
 from layers import fc,create_conv
 import utils
-
+import os
+import time
 '''
     FLOW:
         CapsuleNet.__init__
@@ -155,7 +156,7 @@ class CapsuleNet:
 
         # Get the length of each capsule. axis = 2 tells that this is along columns(16).
         absolute_capsules_length = tf.sqrt(tf.reduce_sum(tf.square(caps2), axis=2, keep_dims=True))
-
+        self.absolute_capsules_length = absolute_capsules_length
         max_l = tf.square(tf.maximum(0., 0.9 - absolute_capsules_length))
         print(max_l.shape)
         max_l = tf.reshape(max_l, shape=(-1, self.NB_OUTPUT_LABELS))
@@ -183,13 +184,13 @@ class CapsuleNet:
 
 
     def optimize(self, images, labels, tb_save=True):
-        tensors = [self.tf_optimizer, self.tf_margin_loss, self.tf_accuracy, self.tf_tensorboard]
-        _, loss, acc, summary = self.sess.run(tensors,
+        tensors = [self.tf_optimizer, self.tf_margin_loss, self.tf_accuracy, self.tf_tensorboard, self.absolute_capsules_length]
+        _, loss, acc, summary, absolute_capslen = self.sess.run(tensors,
             feed_dict={
             self.tf_images: images,
             self.tf_labels: labels
         })
-
+        print "absolute_capslen: " + str(absolute_capslen)
         if tb_save:
             # Write data to tensorboard
             self.train_writer.add_summary(summary, self.train_writer_it)
@@ -200,6 +201,8 @@ class CapsuleNet:
 
     def init_session(self):
        
+        print "creating sesssion"
+        self.sess = tf.Session()
         # Tensorboard
         self.tf_tensorboard = tf.summary.merge_all()
         self.train_writer = tf.summary.FileWriter(self.train_log_name, self.sess.graph)
@@ -207,14 +210,13 @@ class CapsuleNet:
         #  Create session
         print "creating saver"
         self.saver = tf.train.Saver()
-        print "creating sesssion"
-        self.sess = tf.Session()
+        
         print "Initializing global variables"
         # Init variables
         self.sess.run(tf.global_variables_initializer())
         print "Initialized global variables"
 
-        if self.load_session(self):
+        if self.load_session():
             print "Load Success"
         else:
             print "Load Failed."
@@ -251,12 +253,20 @@ class CapsuleNet:
             return False
 
 
-    def print_validation_loss(images,labels):
-        validation_loss = self.margin_loss.eval({ self.tf_images: images,
-                                            self.tf_labels: labels })
+    def print_validation_loss(self, images,labels, epoch, iteration):
+        
+        tensors = [self.tf_margin_loss, self.tf_accuracy]
+        validation_loss, validation_accuracy = self.sess.run(tensors,
+            feed_dict={
+            self.tf_images: images,
+            self.tf_labels: labels
+        })
 
-        validation_accuracy = self.accuracy.eval({ self.tf_images: images,
-                                             self.tf_labels: labels })
+        #validation_loss = self.tf_margin_loss.eval({ self.tf_images: images,
+        #                                    self.tf_labels: labels })
+
+        #validation_accuracy = self.accuracy.eval({ self.tf_images: images,
+        #                                     self.tf_labels: labels })
         
         print("Epoch: [%4d/%4d] time: %.4f, loss: %.8f, accuracy: %.8f" \
             % (epoch, iteration,
@@ -264,12 +274,20 @@ class CapsuleNet:
 
 
 
-    def print_train_loss(images,labels):
-        train_loss = self.margin_loss.eval({ self.tf_images: images,
-                                            self.tf_labels: labels })
+    def print_train_loss(self, images,labels, epoch, iteration):
 
-        train_accuracy = self.accuracy.eval({ self.tf_images: images,
-                                             self.tf_labels: labels })
+        tensors = [self.tf_margin_loss, self.tf_accuracy]
+        train_loss, train_accuracy = self.sess.run(tensors,
+            feed_dict={
+            self.tf_images: images,
+            self.tf_labels: labels
+        })
+
+        #train_loss = self.tf_margin_loss.eval({ self.tf_images: images,
+        #                                    self.tf_labels: labels })
+
+        #train_accuracy = self.accuracy.eval({ self.tf_images: images,
+        #                                     self.tf_labels: labels })
         
         print("Epoch: [%4d/%4d] time: %.4f, loss: %.8f, accuracy: %.8f" \
             % (epoch, iteration,
@@ -278,6 +296,7 @@ class CapsuleNet:
 
     def train_model(self):
         print("train_model")
+        self.start_time=time.time()
 
         #data_train && data_validation are glob list of file_names
         data_train,data_validation = utils.generate_and_split_spectograms_for_complete_data('../../dataset/audio')
@@ -287,7 +306,8 @@ class CapsuleNet:
         validation_images,validation_labels = utils.load_data(self.image_rows,self.image_columns,self.image_channels,data_validation)
 
         iterations = (len(data_train))//self.batch_size
-
+        print "length of trainind dataset: " + str(len(data_train))
+        print "Number of iterations for eac epoch: " + str(iterations)
         self.init()
 
         epoch = 0
@@ -297,20 +317,21 @@ class CapsuleNet:
             epoch+=1
             print "Shuffling training data"
             random.shuffle(data_train)
-
+            index=0
             for i in range(iterations):
-                train_batch = data_train[i:i+self.batch_size]
+                train_batch = data_train[index:index+self.batch_size]
+                index+=self.batch_size
                 print "Loading batch data"
                 images,labels = utils.load_data(self.image_rows,self.image_columns,self.image_channels,train_batch)
-                print("Training batch data")
-                print(images)
-                print(labels)
+                print "Training batch data size: " + str(len(images))
+                #print(images)
+                #print(labels)
                 self.optimize(images,labels)
                 counter+=1
-                if np.mod(counter,10)==2:
-                    self.save_session(self, counter)
-                    print_train_loss(images,labels)
-                    print_validation_loss(validation_images,validation_labels)
+                if np.mod(counter,1)==0:
+                    self.save_session(counter)
+                    self.print_train_loss(images,labels, epoch, i)
+                    #self.print_validation_loss(validation_images,validation_labels, epoch, i)
 
 
                     #tensorboard graphs

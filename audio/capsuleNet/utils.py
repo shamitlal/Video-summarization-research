@@ -10,11 +10,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
 import glob
+from scipy.misc import imread, imsave, imresize
 
 def load_data(image_rows,image_columns,image_channels,data):
-    images = [np.asarray(Image.open(element[0])).reshape(image_rows,image_columns,image_channels) for element in data]
+    images = [imresize(np.asarray(Image.open(element[0])), (image_rows,image_columns,image_channels)) for element in data]
+    #images = [np.asarray(Image.open(element[0])) for element in data]
     images = np.array(images)
-
+    print "images size: " + str(images.shape)
     labels = np.array([element[1] for element in data])
 
     return images,labels
@@ -53,6 +55,8 @@ def generate_and_split_spectograms_for_complete_data(data_base_dir):
 
 def generate_spectogram_and_save(output_dir,input_dir):
     for element in os.listdir(input_dir):
+        if element[0]=='.':
+            continue
         print "element: " + element
         generate_spectogram_from_audio_file(output_dir + "/" + element.split(".")[0], input_dir+'/'+element)
 
@@ -99,5 +103,4 @@ def generate_melspectrogram_from_audio_file(output_spectogram_dir, input_audio_d
 
     librosa.display.specshow(X, sr=sr, hop_length=160, y_axis='log')
     plt.savefig(output_spectogram_dir)
-
 
