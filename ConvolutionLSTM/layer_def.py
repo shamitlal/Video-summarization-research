@@ -76,25 +76,12 @@ def conv_layer(inputs, kernel_size, stride, num_features, idx, linear = False):
     conv_biased = tf.nn.bias_add(conv, biases)
     if linear:
       return conv_biased
-    conv_rect = tf.nn.elu(conv_biased,name='{0}_conv'.format(idx))
+    #batchnorm should be before elu
     conv_rect_batch_norm = tf.contrib.layers.batch_norm(conv_rect,decay=0.9,epsilon=1e-5,scale=True,update_collections=None)
+    conv_rect = tf.nn.elu(conv_biased,name='{0}_conv'.format(idx))
     return conv_rect_batch_norm
 
-def transpose_conv_layer(inputs, kernel_size, stride, num_features, idx, linear = False):
-  with tf.variable_scope('{0}_trans_conv'.format(idx)) as scope:
-    input_channels = inputs.get_shape()[3]
-    
-    weights = _variable_with_weight_decay('weights', shape=[kernel_size,kernel_size,num_features,input_channels], stddev=0.01, wd=FLAGS.weight_decay)
-    biases = _variable_on_cpu('biases',[num_features],tf.constant_initializer(0.01))
-    batch_size = tf.shape(inputs)[0]
-    output_shape = tf.stack([tf.shape(inputs)[0], tf.shape(inputs)[1]*stride, tf.shape(inputs)[2]*stride, num_features]) 
-    conv = tf.nn.conv2d_transpose(inputs, weights, output_shape, strides=[1,stride,stride,1], padding='SAME')
-    conv_biased = tf.nn.bias_add(conv, biases)
-    if linear:
-      return conv_biased
-    conv_rect = tf.nn.elu(conv_biased,name='{0}_transpose_conv'.format(idx))
-    return conv_rect
-     
+
 
 def fc_layer(inputs, hiddens, idx, flat = False, linear = False):
   with tf.variable_scope('{0}_fc'.format(idx)) as scope:

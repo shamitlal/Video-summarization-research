@@ -31,51 +31,81 @@ tf.app.flags.DEFINE_float('weight_init', .1,
 
 fourcc = cv2.cv.CV_FOURCC('m', 'p', '4', 'v') 
 
+
+
 def generate_bouncing_ball_sample(batch_size, seq_length, shape, num_balls):
   dat = np.zeros((batch_size, seq_length, shape, shape, 3))
   for i in xrange(batch_size):
     dat[i, :, :, :, :] = b.bounce_vec(32, num_balls, seq_length)
   return dat 
 
+
+
+
 def network(inputs, hidden, lstm=True):
-  conv1 = ld.conv_layer(inputs, 3, 1, 64, "encode_1")
+  conv1 = tf.nn.max_pool(ld.conv_layer(inputs, 3, 1, 64, "encode_1"), [1,2,2,1], padding="VALID")
   # conv2
-  conv2 = ld.conv_layer(conv1, 3, 1, 128, "encode_2")
+  conv2 = tf.nn.max_pool(ld.conv_layer(conv1, 3, 1, 64, "encode_2"), [1,2,2,1], padding="VALID")
   # conv3
-  conv3 = ld.conv_layer(conv2, 3, 1, 256, "encode_3")
+  conv3 = ld.conv_layer(conv2, 3, 1, 64, "encode_3")
   # conv4
-  conv4 = ld.conv_layer(conv3, 3, 1, 256, "encode_4")
+  conv4 = ld.conv_layer(conv3, 3, 1, 128, "encode_4")
+  shape = tf.shape(conv4)
+  print "shape=" + shape
   y_0 = conv4
   if lstm:
     # conv lstm cell 
     with tf.variable_scope('conv_lstm', initializer = tf.random_uniform_initializer(-.01, 0.1)):
-      cell = BasicConvLSTMCell.BasicConvLSTMCell([8,8], [3,3], 4)
-      if hidden is None:
-        hidden = cell.zero_state(FLAGS.batch_size, tf.float32) 
-      y_1, hidden = cell(y_0, hidden)
-  else:
-    y_1 = ld.conv_layer(y_0, 3, 1, 8, "encode_3")
- 
-  # conv5
-  conv5 = ld.transpose_conv_layer(y_1, 1, 1, 8, "decode_5")
-  # conv6
-  conv6 = ld.transpose_conv_layer(conv5, 3, 2, 8, "decode_6")
-  # conv7
-  conv7 = ld.transpose_conv_layer(conv6, 3, 1, 8, "decode_7")
-  # x_1 
-  x_1 = ld.transpose_conv_layer(conv7, 3, 2, 3, "decode_8", True) # set activation to linear
+      cell = BasicConvLSTMCell.BasicConvLSTMCell([shape[1], shape[2]], [3,3], 128)
+      if hidden[0] is None:
+        hidden[0] = cell.zero_state(FLAGS.batch_size, tf.float32) 
+      y_1, hidden[0] = cell(y_0, hidden[0])
+  
 
-  return x_1, hidden
+  shape = tf.shape(y_1)
+  print "shape after first conv lstm layer: " + shape
+
+  if lstm:
+    # conv lstm cell 
+    with tf.variable_scope('conv_lstm', initializer = tf.random_uniform_initializer(-.01, 0.1)):
+      cell = BasicConvLSTMCell.BasicConvLSTMCell([shape[1], shape[2]], [3,3], 128)
+      if hidden[1] is None:
+        hidden[1] = cell.zero_state(FLAGS.batch_size, tf.float32) 
+      y_2, hidden[1] = cell(y_1, hidden[1])
+ 
+  
+  # conv5
+  conv5 = tf.nn.max_pool(ld.conv_layer(conv1, 3, 1, 128, "encode_5"), [1,2,2,1], padding="VALID")
+  # conv5
+  conv6 = tf.nn.max_pool(ld.conv_layer(conv1, 3, 1, 128, "encode_5"), [1,2,2,1], padding="VALID")
+  # fully connected 1
+  print "shape of conv6: " + tf.shape(conv6)
+  fn1 = ld.fc_layer(conv6, 1024, flat=True)
+
+  fn2 = ld.fc_layer(fn1, 512)
+
+  fn3 = ld.fc_layer(fn2, 128)
+
+  output = (ld.fc_layer(fn3, 1, linear = True))
+
+  return output, hidden
+
+
+
 
 # make a template for reuse
 network_template = tf.make_template('network', network)
+
+
+
 
 def train():
   """Train ring_net for a number of steps."""
   with tf.Graph().as_default():
     # make inputs
-    x = tf.placeholder(tf.float32, [None, FLAGS.seq_length, 32, 32, 3])
+    x = tf.placeholder(tf.float32, [None, FLAGS.seq_length, 128, 128, 3])
 
+    labels = tf.placeholder(tf.int32, [None, FLAGS.seq_lengt])
     # possible dropout inside
     keep_prob = tf.placeholder("float")
     x_dropout = tf.nn.dropout(x, keep_prob)
@@ -84,34 +114,15 @@ def train():
     x_unwrap = []
 
     # conv network
-    hidden = None
+    hidden = [None for i in range(2)]
+
     for i in xrange(FLAGS.seq_length-1):
-      if i < FLAGS.seq_start:
+      
         x_1, hidden = network_template(x_dropout[:,i,:,:,:], hidden)
-      else:
-        x_1, hidden = network_template(x_1, hidden)
-      x_unwrap.append(x_1)
+        x_unwrap.append(x_1)
 
-    # pack them all together 
-    x_unwrap = tf.stack(x_unwrap)
-    x_unwrap = tf.transpose(x_unwrap, [1,0,2,3,4])
+    loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=labels, logits=x_unwrap)
 
-    # this part will be used for generating video
-    x_unwrap_g = []
-    hidden_g = None
-    for i in xrange(50):
-      if i < FLAGS.seq_start:
-        x_1_g, hidden_g = network_template(x_dropout[:,i,:,:,:], hidden_g)
-      else:
-        x_1_g, hidden_g = network_template(x_1_g, hidden_g)
-      x_unwrap_g.append(x_1_g)
-
-    # pack them generated ones
-    x_unwrap_g = tf.stack(x_unwrap_g)
-    x_unwrap_g = tf.transpose(x_unwrap_g, [1,0,2,3,4])
-
-    # calc total loss (compare x_t to x_t+1)
-    loss = tf.nn.l2_loss(x[:,FLAGS.seq_start+1:,:,:,:] - x_unwrap[:,FLAGS.seq_start:,:,:,:])
     tf.summary.scalar('loss', loss)
 
     # training
@@ -175,11 +186,19 @@ def train():
         video.release()
 
 
+
+
+
+
 def main(argv=None):  # pylint: disable=unused-argument
   if tf.gfile.Exists(FLAGS.train_dir):
     tf.gfile.DeleteRecursively(FLAGS.train_dir)
   tf.gfile.MakeDirs(FLAGS.train_dir)
   train()
+
+
+
+
 
 if __name__ == '__main__':
   tf.app.run()
