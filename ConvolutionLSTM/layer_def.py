@@ -77,8 +77,8 @@ def conv_layer(inputs, kernel_size, stride, num_features, idx, linear = False):
     if linear:
       return conv_biased
     #batchnorm should be before elu
-    conv_rect_batch_norm = tf.contrib.layers.batch_norm(conv_rect,decay=0.9,epsilon=1e-5,scale=True,update_collections=None)
-    conv_rect = tf.nn.elu(conv_biased,name='{0}_conv'.format(idx))
+    conv_rect_batch_norm = tf.contrib.layers.batch_norm(conv_biased,decay=0.9,epsilon=1e-5,scale=True,updates_collections=None)
+    conv_rect = tf.nn.elu(conv_rect_batch_norm,name='{0}_conv'.format(idx))
     return conv_rect_batch_norm
 
 

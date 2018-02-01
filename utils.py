@@ -69,7 +69,9 @@ def load_image2(path, height=None, width=None):
 
 
 def convert_video_to_frames(input_video,output_directory):
-    os.system("ffmpeg -i {0} -vf fps=1 {1}/thumb%04d.jpg -hide_banner".format(input_video,output_directory))
+    if not os.path.isdir(output_directory):
+        os.mkdir(output_directory)
+    os.system("ffmpeg -i {0} -vf fps=3 {1}/thumb%04d.jpg -hide_banner".format(input_video,output_directory))
     '''
     if not os.path.isdir(output_directory):
         os.system('mkdir ' + output_directory)
@@ -118,6 +120,19 @@ def extract_audio_from_video(video_base_dir,video_name):
     audio_base_dir = "dataset/audio/"
     audio_dir = audio_base_dir + video_name.split(".")[0] + ".wav"
     os.system("ffmpeg -i {0} -f wav -ab 192000 -vn {1}".format(video_base_dir+video_name,audio_dir))
+
+
+def get_frame_importance_vector(input_directory,total_frames):
+    frame_importance = np.zeros(total_frames)
+    for frame in os.listdir(input_directory):
+        if frame[0]=='.':
+            continue
+        frame_number = frame.split("thumb")[1].split('.')[0]
+        frame_number = int(frame_number)
+        frame_importance[frame_number] = 1
+
+    return frame_importance
+
 
 
 def test():
