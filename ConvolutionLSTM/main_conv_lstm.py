@@ -150,8 +150,11 @@ def train():
     
 
 
-    loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=labels, logits=x_unwrap)
-
+    sigmoid_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=labels, logits=x_unwrap)
+    print "LOSS SHAPE: "  + str(sigmoid_loss.shape)
+    loss = tf.reduce_sum(sigmoid_loss)
+    print "LOSS SHAPE: "  + str(loss.shape)
+    
     tf.summary.scalar('loss', loss)
 
     # training
