@@ -14,7 +14,6 @@ from scipy.misc import imread, imsave, imresize
 import sys
 sys.path.append(os.path.abspath('..'))
 print sys.path
-import utils
 from PIL import Image
 
 FLAGS = tf.app.flags.FLAGS
@@ -68,12 +67,12 @@ def network(inputs, hidden, lstm=True):
 
 
   conv1_1 = ld.conv_layer(inputs, 3, 1, 16, "encode_1_1")
-  conv1_2 = tf.nn.max_pool(ld.conv_layer(conv1_1, 3, 1, 16, "encode_1_2"), [1,2,2,1],strides=[1,1,1,1], padding="SAME")
+  conv1_2 = tf.nn.max_pool(ld.conv_layer(conv1_1, 3, 1, 16, "encode_1_2"), [1,3,3,1],strides=[1,2,2,1], padding="SAME")
 
 
   # conv2
   conv2_1 = ld.conv_layer(conv1_2, 3, 1, 32, "encode_2_1")
-  conv2_2 = tf.nn.max_pool(ld.conv_layer(conv2_1, 3, 1, 32, "encode_2_2"), [1,2,2,1],strides=[1,1,1,1], padding="SAME")
+  conv2_2 = tf.nn.max_pool(ld.conv_layer(conv2_1, 3, 1, 32, "encode_2_2"), [1,3,3,1],strides=[1,2,2,1], padding="SAME")
   # 32 x 32 x 128
 
 
@@ -94,18 +93,18 @@ def network(inputs, hidden, lstm=True):
       hidden[1] = cell.zero_state(BATCH_SIZE, tf.float32) 
     y_2, hidden[1] = cell(y_1, hidden[1])
 
-  y_2_pool = tf.nn.max_pool(y_2, [1,2,2,1],strides=[1,1,1,1], padding="SAME")
+  y_2_pool = tf.nn.max_pool(y_2, [1,3,3,1],strides=[1,2,2,1], padding="SAME")
   #16 x 16 x 64
 
   # conv3
   conv3_1 = ld.conv_layer(y_2_pool, 3, 1, 128, "encode_3_1")
-  conv3_2 = tf.nn.max_pool(ld.conv_layer(conv3_1, 3, 1, 128, "encode_3_2"), [1,2,2,1],strides=[1,1,1,1], padding="SAME")
+  conv3_2 = tf.nn.max_pool(ld.conv_layer(conv3_1, 3, 1, 128, "encode_3_2"), [1,3,3,1],strides=[1,2,2,1], padding="SAME")
   #8 x 8 x 128
 
   # conv4
   conv4_1 = ld.conv_layer(conv3_2, 3, 1, 256, "encode_4_1")
-  conv4_2 = tf.nn.max_pool(ld.conv_layer(conv4_1, 3, 1, 256, "encode_4_2"), [1,2,2,1],strides=[1,1,1,1], padding="SAME")
-  conv4_3 = tf.nn.max_pool(ld.conv_layer(conv4_2, 3, 1, 256, "encode_4_3"), [1,2,2,1],strides=[1,1,1,1], padding="SAME")
+  conv4_2 = tf.nn.max_pool(ld.conv_layer(conv4_1, 3, 1, 256, "encode_4_2"), [1,3,3,1],strides=[1,2,2,1], padding="SAME")
+  conv4_3 = tf.nn.max_pool(ld.conv_layer(conv4_2, 3, 1, 256, "encode_4_3"), [1,3,3,1],strides=[1,2,2,1], padding="SAME")
   #4 x 4 x 256
 
   
@@ -208,6 +207,7 @@ def train():
     saver_step = 0
 
     while(epoch<MAX_EPOCHS):
+      print("Epoch: " + str(epoch))
       random.shuffle(videos)
       print "Len of videos glob: " + str(len(videos))
       start_count = 0
@@ -262,6 +262,7 @@ def train():
           print "LOSS: " + str(loss_r)
           print "ACCURACY: " + str(accuracy_r)
 
+          print("Iteration: " + str(saver_step))
           saver_step+=1
 
                   
