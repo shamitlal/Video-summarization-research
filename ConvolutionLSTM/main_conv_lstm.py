@@ -67,20 +67,20 @@ def get_images(frames,shape=IMAGE_SHAPE):
 def network(inputs, hidden, lstm=True):
 
 
-  conv1_1 = ld.conv_layer(inputs, 3, 1, 1, "encode_1_1")
-  conv1_2 = tf.nn.max_pool(ld.conv_layer(conv1_1, 3, 1, 1, "encode_1_2"), [1,2,2,1],strides=[1,1,1,1], padding="SAME")
+  conv1_1 = ld.conv_layer(inputs, 3, 1, 16, "encode_1_1")
+  conv1_2 = tf.nn.max_pool(ld.conv_layer(conv1_1, 3, 1, 16, "encode_1_2"), [1,2,2,1],strides=[1,1,1,1], padding="SAME")
 
 
   # conv2
-  conv2_1 = ld.conv_layer(conv1_2, 3, 1, 3, "encode_2_1")
-  conv2_2 = tf.nn.max_pool(ld.conv_layer(conv2_1, 3, 1, 3, "encode_2_2"), [1,2,2,1],strides=[1,1,1,1], padding="SAME")
+  conv2_1 = ld.conv_layer(conv1_2, 3, 1, 32, "encode_2_1")
+  conv2_2 = tf.nn.max_pool(ld.conv_layer(conv2_1, 3, 1, 32, "encode_2_2"), [1,2,2,1],strides=[1,1,1,1], padding="SAME")
   # 32 x 32 x 128
 
 
   # conv lstm cell 1
   shape = tf.shape(conv2_2)
   with tf.variable_scope('conv_lstm_1', initializer = tf.random_uniform_initializer(-.01, 0.1)):
-    cell = BasicConvLSTMCell.BasicConvLSTMCell([shape[1], shape[2]], [3,3], 6)
+    cell = BasicConvLSTMCell.BasicConvLSTMCell([shape[1], shape[2]], [3,3], 64)
     if hidden[0] is None:
       hidden[0] = cell.zero_state(BATCH_SIZE, tf.float32) 
     y_1, hidden[0] = cell(conv2_2, hidden[0])
@@ -89,7 +89,7 @@ def network(inputs, hidden, lstm=True):
   # conv lstm cell 2
   shape = tf.shape(y_1)
   with tf.variable_scope('conv_lstm_2', initializer = tf.random_uniform_initializer(-.01, 0.1)):
-    cell = BasicConvLSTMCell.BasicConvLSTMCell([shape[1], shape[2]], [3,3], 6)
+    cell = BasicConvLSTMCell.BasicConvLSTMCell([shape[1], shape[2]], [3,3], 64)
     if hidden[1] is None:
       hidden[1] = cell.zero_state(BATCH_SIZE, tf.float32) 
     y_2, hidden[1] = cell(y_1, hidden[1])
@@ -98,19 +98,19 @@ def network(inputs, hidden, lstm=True):
   #16 x 16 x 64
 
   # conv3
-  conv3_1 = ld.conv_layer(y_2_pool, 3, 1, 12, "encode_3_1")
-  conv3_2 = tf.nn.max_pool(ld.conv_layer(conv3_1, 3, 1, 12, "encode_3_2"), [1,2,2,1],strides=[1,1,1,1], padding="SAME")
+  conv3_1 = ld.conv_layer(y_2_pool, 3, 1, 128, "encode_3_1")
+  conv3_2 = tf.nn.max_pool(ld.conv_layer(conv3_1, 3, 1, 128, "encode_3_2"), [1,2,2,1],strides=[1,1,1,1], padding="SAME")
   #8 x 8 x 128
 
   # conv4
   conv4_1 = ld.conv_layer(conv3_2, 3, 1, 256, "encode_4_1")
-  conv4_2 = tf.nn.max_pool(ld.conv_layer(conv4_1, 3, 1, 25, "encode_4_2"), [1,2,2,1],strides=[1,1,1,1], padding="SAME")
-  conv4_3 = tf.nn.max_pool(ld.conv_layer(conv4_2, 3, 1, 25, "encode_4_3"), [1,2,2,1],strides=[1,1,1,1], padding="SAME")
+  conv4_2 = tf.nn.max_pool(ld.conv_layer(conv4_1, 3, 1, 256, "encode_4_2"), [1,2,2,1],strides=[1,1,1,1], padding="SAME")
+  conv4_3 = tf.nn.max_pool(ld.conv_layer(conv4_2, 3, 1, 256, "encode_4_3"), [1,2,2,1],strides=[1,1,1,1], padding="SAME")
   #4 x 4 x 256
 
   
-  fn1 = ld.fc_layer(conv4_3, 10, flat=True,idx="fc_1")
-  fn2 = ld.fc_layer(fn1, 10,idx="fc_2")
+  fn1 = ld.fc_layer(conv4_3, 1024, flat=True,idx="fc_1")
+  fn2 = ld.fc_layer(fn1, 1024,idx="fc_2")
   output = (ld.fc_layer(fn2, 5, linear = True,idx="fc_3"))
 
   return output, hidden
@@ -256,11 +256,10 @@ def train():
           print "LOSS: " + str(loss_r)
           print "ACCURACY: " + str(accuracy_r)
 
-          start_count += 10
           saver_step+=1
 
                   
-          if saver_step%20 == 0:
+          if saver_step%5 == 0:
             checkpoint_path = os.path.join(FLAGS.train_dir, 'model.ckpt')
             saver.save(sess, checkpoint_path, global_step=saver_step)  
             print("saved to " + FLAGS.train_dir)
