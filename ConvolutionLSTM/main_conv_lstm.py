@@ -142,14 +142,14 @@ def train():
     # conv network
     hidden = [None for i in range(2)]
 
-    gpu_devices = [for i in range(0,8)]
+    gpu_devices = [i for i in range(0,8)]
     device_count = 0
     for i in xrange(SEQ_LENGTH):
         with tf.device("/gpu:" + str(device_count)):
           x_1, hidden = network_template(x_dropout[:,i,:,:,:], hidden)
           x_unwrap.append(x_1)
-          device_count+=1
-          device_count%=8
+        device_count+=1
+        device_count%=8
 
 
 
