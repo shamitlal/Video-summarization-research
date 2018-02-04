@@ -39,8 +39,14 @@ def get_frame_importance(file_dir):
         final_scores.append((int(scores[i])-1))
       i += 60
     video_to_frame_importance[tab_separated_values[0]]=final_scores
+    frame_input_path = "/Users/shamitl/Desktop/shamit/proj/video_sum/dataset/video_frames/Webscope_I4"
+    print "frame len: " + str(len(os.listdir(frame_input_path + "/" + tab_separated_values[0])))
+    print "label len: " + str(len(final_scores))
+    print "video: " + str(tab_separated_values[0])
+    print "\n\n#######################################################\n\n"
   print video_to_frame_importance
   return video_to_frame_importance
 
 if __name__=='__main__':
-	get_frame_importance(("dataset/Webscope_I4/ydata-tvsum50-v1_1/data/ydata-tvsum50-anno.tsv"))
+	#get_frame_importance(("dataset/Webscope_I4/ydata-tvsum50-v1_1/data/ydata-tvsum50-anno.tsv"))
+	generate_video_dataset()
