@@ -147,8 +147,8 @@ def train():
         with tf.device("/gpu:" + str(device_count)):
           x_1, hidden = network_template(x_dropout[:,i,:,:,:], hidden)
           x_unwrap.append(x_1)
-          device_count+=1
-          device_count%=8
+        device_count+=1
+        device_count%=8
 
 
 
