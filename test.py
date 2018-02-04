@@ -44,6 +44,8 @@ def get_frame_importance(file_dir):
 			dirr = "dataset/video_frames/Webscope_all/" + tab_separated_values[0] + "/" + frame
 			image = np.asarray(Image.open(dirr))
 			image = imresize(image,(224,224,3))
+			if not os.path.isdir(frame_input_path + tab_separated_values[0]):
+				os.mkdir(frame_input_path + tab_separated_values[0])
 			Image.fromarray(image).save(frame_input_path + tab_separated_values[0] + "/" + frame)
 
 
