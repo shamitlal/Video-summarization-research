@@ -37,17 +37,13 @@ SEQ_LENGTH = 10
 LEARNING_RATE = 0.001
 
 def get_frame_importance(file_dir):
-  f = open(file_dir,"r")
+  f = open(file_dir,"r")test.py
   video_to_frame_importance = dict()
   for video_imp in f:
     tab_separated_values = video_imp.split('\t')
     scores = tab_separated_values[2].split(',')
     i=0
-    final_scores=list()
-    while(i<len(scores)):
-      for j in range(0, FPS*2):
-        final_scores.append(str(int(scores[i])-1))
-      i += 60
+    final_scores = [int(score)-1 for score in scores[::10]]
     video_to_frame_importance[tab_separated_values[0]]=final_scores
   return video_to_frame_importance
 
