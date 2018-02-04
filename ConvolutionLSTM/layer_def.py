@@ -78,7 +78,7 @@ def conv_layer(inputs, kernel_size, stride, num_features, idx, linear = False):
     #batchnorm should be before elu
     conv_rect_batch_norm = tf.contrib.layers.batch_norm(conv_biased,decay=0.9,epsilon=1e-5,scale=True,updates_collections=None)
     conv_rect = tf.nn.elu(conv_rect_batch_norm,name='{0}_conv'.format(idx))
-    return conv_rect_batch_norm
+    return conv_rect
 
 
 
@@ -91,7 +91,7 @@ def fc_layer(inputs, hiddens, idx, flat = False, linear = False):
     else:
       dim = input_shape[1]
       inputs_processed = inputs
-    
+    inputs_processed = tf.nn.dropout(inputs_processed, keep_prob=0.5)
     weights = _variable_with_weight_decay('weights', shape=[dim,hiddens],stddev=FLAGS.weight_init, wd=FLAGS.weight_decay)
     biases = _variable_on_cpu('biases', [hiddens], tf.constant_initializer(FLAGS.weight_init))
     if linear:
