@@ -34,14 +34,24 @@ def get_frame_importance(file_dir):
     scores = tab_separated_values[2].split(',')
     i=0
     final_scores=list()
-    while(i<len(scores)):
-      for j in range(0, FPS*2):
-        final_scores.append((int(scores[i])-1))
-      i += 60
-    video_to_frame_importance[tab_separated_values[0]]=final_scores
-    frame_input_path = "/Users/shamitl/Desktop/shamit/proj/video_sum/dataset/video_frames/Webscope_I4"
-    print "frame len: " + str(len(os.listdir(frame_input_path + "/" + tab_separated_values[0])))
-    print "label len: " + str(len(final_scores))
+    if not os.path.isdir("dataset/video_frames/Webscope_I4/"):
+    	os.mkdir("dataset/video_frames/Webscope_I4/")
+    frame_input_path = "dataset/video_frames/Webscope_I4/"
+    for frame in os.listdir("dataset/video_frames/Webscope_all/" + tab_separated_values[0]):
+		if frame[0] == '.':
+			continue
+		if index%10==0:
+			dirr = "dataset/video_frames/Webscope_all/" + tab_separated_values[0] + "/" + frame
+			image = np.asarray(Image.open(dirr))
+			image = imresize(image,(224,224,3))
+			Image.fromarray(image).save(frame_input_path + tab_separated_values[0] + "/" + frame)
+
+
+
+
+    video_to_frame_importance[tab_separated_values[0]]=[int(score)-1 for score in scores[::10]]
+    print "frame len: " + str(len(os.listdir(frame_input_path + tab_separated_values[0])))
+    print "label len: " + str(len(video_to_frame_importance[tab_separated_values[0]]))
     print "video: " + str(tab_separated_values[0])
     print "\n\n#######################################################\n\n"
   print video_to_frame_importance
