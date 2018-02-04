@@ -142,9 +142,15 @@ def train():
     # conv network
     hidden = [None for i in range(2)]
 
+    gpu_devices = [for i in range(0,8)]
+    device_count = 0
     for i in xrange(SEQ_LENGTH):
-        x_1, hidden = network_template(x_dropout[:,i,:,:,:], hidden)
-        x_unwrap.append(x_1)
+        with tf.device("/gpu:" + str(device_count)):
+          x_1, hidden = network_template(x_dropout[:,i,:,:,:], hidden)
+          x_unwrap.append(x_1)
+          device_count+=1
+          device_count%=8
+
 
 
     #SHAPE OF X_WRAP : BATCH_SIZE * SEQ_LENGTH, 5
@@ -165,7 +171,7 @@ def train():
     tf.summary.scalar('loss', loss)
 
     # training
-    train_op = tf.train.AdamOptimizer(LEARNING_RATE).minimize(loss)
+    train_op = tf.train.AdamOptimizer(LEARNING_RATE).minimize(loss, colocate_gradients_with_ops=True)
     
     # List of all Variables
     variables = tf.global_variables()
