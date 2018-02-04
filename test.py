@@ -37,7 +37,7 @@ def get_frame_importance(file_dir):
     if not os.path.isdir("dataset/video_frames/Webscope_I4/"):
     	os.mkdir("dataset/video_frames/Webscope_I4/")
     frame_input_path = "dataset/video_frames/Webscope_I4/"
-    for frame in os.listdir("dataset/video_frames/Webscope_all/" + tab_separated_values[0]):
+    for index,frame in enumerate(os.listdir("dataset/video_frames/Webscope_all/" + tab_separated_values[0])):
 		if frame[0] == '.':
 			continue
 		if index%10==0:
