@@ -58,5 +58,5 @@ def get_frame_importance(file_dir):
   return video_to_frame_importance
 
 if __name__=='__main__':
-	#get_frame_importance(("dataset/Webscope_I4/ydata-tvsum50-v1_1/data/ydata-tvsum50-anno.tsv"))
-	generate_video_dataset()
+	get_frame_importance(("dataset/Webscope_I4/ydata-tvsum50-v1_1/data/ydata-tvsum50-anno.tsv"))
+	#get_frame_importance()
