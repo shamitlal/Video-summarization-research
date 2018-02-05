@@ -30,7 +30,7 @@ tf.app.flags.DEFINE_float('weight_init', .1,
                             """weight init for fully connected layers""")
 
 FPS = 3
-BATCH_SIZE = 4
+BATCH_SIZE = 32
 IMAGE_SHAPE = 224
 IMAGE_CHANNELS = 3
 SEQ_LENGTH = 10
@@ -164,6 +164,7 @@ def train():
     print "LOSS SHAPE: "  + str(loss.shape)
     
     tf.summary.scalar('loss', loss)
+    tf.summary.scalar('accuracy', accuracy)
 
     # training
     train_op = tf.train.AdamOptimizer(LEARNING_RATE).minimize(loss, colocate_gradients_with_ops=True)
@@ -186,11 +187,12 @@ def train():
 
     #Loading the session
     print(" [*] Reading checkpoint...")
-    checkpoint_dir = "./checkpoint/train_store_conv_lstm"
+    checkpoint_dir = "./checkpoints/train_store_conv_lstm"
     model_name = "model.ckpt"
     
     ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
     if ckpt and ckpt.model_checkpoint_path:
+        print("Trying to load the session")
         ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
         saver.restore(sess, os.path.join(checkpoint_dir, ckpt_name))
         print("Session Loaded")
@@ -199,8 +201,9 @@ def train():
 
     # Summary op
     graph_def = sess.graph
+    print "graph_def: " + str(graph_def)
     tf_tensorboard = tf.summary.merge_all()
-    summary_writer = tf.summary.FileWriter(FLAGS.train_dir,graph_def)
+    summary_writer = tf.summary.FileWriter("./checkpoints/train_store_conv_lstm",graph_def)
     summary_writer_it = 0
 
 
