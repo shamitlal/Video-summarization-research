@@ -37,7 +37,7 @@ SEQ_LENGTH = 10
 LEARNING_RATE = 0.001
 
 def get_frame_importance(file_dir):
-  f = open(file_dir,"r")test.py
+  f = open(file_dir,"r")
   video_to_frame_importance = dict()
   for video_imp in f:
     tab_separated_values = video_imp.split('\t')
@@ -144,7 +144,7 @@ def train():
           x_1, hidden = network_template(x_dropout[:,i,:,:,:], hidden)
           x_unwrap.append(x_1)
         device_count+=1
-        device_count%=8
+        device_count%=1
 
 
 
@@ -173,9 +173,6 @@ def train():
 
     # Build a saver
     saver = tf.train.Saver(tf.global_variables())   
-
-    # Summary op
-    summary_op = tf.summary.merge_all()
  
     # Build an initialization operation to run below.
     init = tf.global_variables_initializer()
@@ -187,12 +184,25 @@ def train():
     print("init network from scratch")
     sess.run(init)
 
+    #Loading the session
+    print(" [*] Reading checkpoint...")
+    checkpoint_dir = "./checkpoint/train_store_conv_lstm"
+    model_name = "model.ckpt"
+    
+    ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
+    if ckpt and ckpt.model_checkpoint_path:
+        ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
+        saver.restore(sess, os.path.join(checkpoint_dir, ckpt_name))
+        print("Session Loaded")
+    else:
+        print("No session to load")
+
     # Summary op
     graph_def = sess.graph
     tf_tensorboard = tf.summary.merge_all()
     summary_writer = tf.summary.FileWriter(FLAGS.train_dir,graph_def)
     summary_writer_it = 0
-    saver = tf.train.Saver()
+
 
     MAX_EPOCHS = 10000000
     epoch = 0
@@ -247,7 +257,7 @@ def train():
 
           t = time.time()
           #frame_importance_numpy = np.asarray(frame_importance[start_count:start_count+10]).reshape(-1)
-          _, loss_r, accuracy_r, summary = sess.run([train_op, loss, accuracy, tf_tensorboard],feed_dict={x:dat, labels:dat_label})
+          _, loss_r, accuracy_r, summary, output = sess.run([train_op, loss, accuracy, tf_tensorboard, x_unwrap],feed_dict={x:dat, labels:dat_label})
           elapsed = time.time() - t
 
 
@@ -255,6 +265,8 @@ def train():
           summary_writer.add_summary(summary, summary_writer_it)
           summary_writer_it += 1
 
+          print "MODEL OUTPUT: " + str(output)
+          print "TRUE OUTPUT: " + str(dat_label)
           print "LOSS: " + str(loss_r)
           print "ACCURACY: " + str(accuracy_r)
 
