@@ -35,8 +35,8 @@ IMAGE_SHAPE = 224
 IMAGE_CHANNELS = 3
 SEQ_LENGTH = 10
 LEARNING_RATE = 0.002
-LABEL_WEIGHT = 8
-
+LABEL_WEIGHT = 9
+#mean_image = np.zeros((224,224,3))
 def get_frame_importance(file_dir):
   f = open(file_dir,"r")
   video_to_frame_importance = dict()
@@ -48,13 +48,14 @@ def get_frame_importance(file_dir):
     video_to_frame_importance[tab_separated_values[0]]=final_scores
   return video_to_frame_importance
 
-def get_images(frames,shape=IMAGE_SHAPE):
+def get_images(frames, mean_image, shape=IMAGE_SHAPE):
   image_rows = shape
   image_columns = shape
   image_channels = IMAGE_CHANNELS
 
   images = [(imread(element)) for element in frames]
   images = np.asarray(images) - mean_image
+  print "mean image sum: " + str(np.sum(mean_image))
 
   images = np.asarray(images).reshape(SEQ_LENGTH,shape,shape,image_channels)
   print images.shape
@@ -129,7 +130,7 @@ def train():
     # make inputs
     x = tf.placeholder(tf.float32, [None, SEQ_LENGTH, IMAGE_SHAPE, IMAGE_SHAPE, IMAGE_CHANNELS])
 
-    labels = tf.placeholder(tf.int64, [BATCH_SIZE*SEQ_LENGTH])
+    labels = tf.placeholder(tf.float32, [BATCH_SIZE*SEQ_LENGTH])
     # possible dropout inside
     x_dropout = x
 
@@ -142,7 +143,7 @@ def train():
     gpu_devices = [i for i in range(0,8)]
     device_count = 0
     for i in xrange(SEQ_LENGTH):
-        with tf.device("/gpu:" + str(device_count)):
+        with tf.device("/cpu:" + str(device_count)):
           x_1, hidden = network_template(x_dropout[:,i,:,:,:], hidden)
           x_unwrap.append(x_1)
         device_count+=1
@@ -217,7 +218,7 @@ def train():
     #loading the epochs
     saver_step = 0
 
-    mean_image = np.load("ConvolutionLSTM/mean_image.npy")
+    mean_image = np.load("mean_image.npy")
 
     while(epoch<MAX_EPOCHS):
       print("Epoch: " + str(epoch))
@@ -252,7 +253,7 @@ def train():
           selected_importance_labels = []
           for video_index_num in range(0, video_index):
             selected_frames = frame[video_index_num][frame_start_count: frame_start_count+SEQ_LENGTH]
-            selected_batch.append(get_images(selected_frames))
+            selected_batch.append(get_images(selected_frames,mean_image))
             selected_importance_labels.append(this_frame_importance[video_index_num][frame_start_count: frame_start_count+SEQ_LENGTH])
 
           frame_start_count += SEQ_LENGTH
