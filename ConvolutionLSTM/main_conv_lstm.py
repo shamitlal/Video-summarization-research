@@ -30,11 +30,12 @@ tf.app.flags.DEFINE_float('weight_init', .1,
                             """weight init for fully connected layers""")
 
 FPS = 3
-BATCH_SIZE = 4
+BATCH_SIZE = 12
 IMAGE_SHAPE = 224
 IMAGE_CHANNELS = 3
 SEQ_LENGTH = 10
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.002
+LABEL_WEIGHT = 8
 
 def get_frame_importance(file_dir):
   f = open(file_dir,"r")
@@ -43,7 +44,7 @@ def get_frame_importance(file_dir):
     tab_separated_values = video_imp.split('\t')
     scores = tab_separated_values[2].split(',')
     i=0
-    final_scores = [int(score)-1 for score in scores[::10]]
+    final_scores = [(int(score)-1)//3 for score in scores[::10]]
     video_to_frame_importance[tab_separated_values[0]]=final_scores
   return video_to_frame_importance
 
@@ -53,6 +54,7 @@ def get_images(frames,shape=IMAGE_SHAPE):
   image_channels = IMAGE_CHANNELS
 
   images = [(imread(element)) for element in frames]
+  images = np.asarray(images) - mean_image
 
   images = np.asarray(images).reshape(SEQ_LENGTH,shape,shape,image_channels)
   print images.shape
@@ -106,7 +108,7 @@ def network(inputs, hidden, lstm=True):
   
   fn1 = ld.fc_layer(conv4_3, 1024, flat=True,idx="fc_1")
   fn2 = ld.fc_layer(fn1, 1024,idx="fc_2")
-  output = (ld.fc_layer(fn2, 5, linear = True,idx="fc_3"))
+  output = (ld.fc_layer(fn2, 1, linear = True,idx="fc_3"))
 
   return output, hidden
 
@@ -148,22 +150,23 @@ def train():
 
 
 
-    #SHAPE OF X_WRAP : BATCH_SIZE * SEQ_LENGTH, 5
-    x_unwrap = tf.reshape(x_unwrap,[-1, 5])
+    #SHAPE OF X_WRAP : BATCH_SIZE * SEQ_LENGTH
+    x_unwrap = tf.reshape(x_unwrap,[-1])
 
     print "LABELS SHAPE: " + str(labels)
     print "X_UNWRAP SHAPE: " + str(x_unwrap)
-    correct_prediction = tf.equal(tf.argmax(x_unwrap, axis=1), labels)
+    correct_prediction = tf.equal(tf.round(x_unwrap), labels)
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
     
 
 
-    sigmoid_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels, logits=x_unwrap)
+    sigmoid_loss = tf.nn.weighted_cross_entropy_with_logits(targets=labels, logits=x_unwrap,pos_weight=LABEL_WEIGHT)
     print "LOSS SHAPE: "  + str(sigmoid_loss.shape)
     loss = tf.reduce_sum(sigmoid_loss)/BATCH_SIZE
     print "LOSS SHAPE: "  + str(loss.shape)
     
     tf.summary.scalar('loss', loss)
+    tf.summary.scalar('accuracy', accuracy)
 
     # training
     train_op = tf.train.AdamOptimizer(LEARNING_RATE).minimize(loss, colocate_gradients_with_ops=True)
@@ -186,11 +189,12 @@ def train():
 
     #Loading the session
     print(" [*] Reading checkpoint...")
-    checkpoint_dir = "./checkpoint/train_store_conv_lstm"
+    checkpoint_dir = "./checkpoints/train_store_conv_lstm"
     model_name = "model.ckpt"
     
     ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
     if ckpt and ckpt.model_checkpoint_path:
+        print("Trying to load the session")
         ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
         saver.restore(sess, os.path.join(checkpoint_dir, ckpt_name))
         print("Session Loaded")
@@ -199,8 +203,9 @@ def train():
 
     # Summary op
     graph_def = sess.graph
+    print "graph_def: " + str(graph_def)
     tf_tensorboard = tf.summary.merge_all()
-    summary_writer = tf.summary.FileWriter(FLAGS.train_dir,graph_def)
+    summary_writer = tf.summary.FileWriter("./checkpoints/train_store_conv_lstm",graph_def)
     summary_writer_it = 0
 
 
@@ -211,6 +216,8 @@ def train():
     labels_map = get_frame_importance("../dataset/Webscope_I4/ydata-tvsum50-v1_1/data/ydata-tvsum50-anno.tsv")
     #loading the epochs
     saver_step = 0
+
+    mean_image = np.load("ConvolutionLSTM/mean_image.npy")
 
     while(epoch<MAX_EPOCHS):
       print("Epoch: " + str(epoch))
