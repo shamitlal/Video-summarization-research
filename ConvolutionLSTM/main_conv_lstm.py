@@ -54,6 +54,7 @@ def get_images(frames,shape=IMAGE_SHAPE):
   image_channels = IMAGE_CHANNELS
 
   images = [(imread(element)) for element in frames]
+  images = np.asarray(images) - mean_image
 
   images = np.asarray(images).reshape(SEQ_LENGTH,shape,shape,image_channels)
   print images.shape
@@ -215,6 +216,8 @@ def train():
     labels_map = get_frame_importance("../dataset/Webscope_I4/ydata-tvsum50-v1_1/data/ydata-tvsum50-anno.tsv")
     #loading the epochs
     saver_step = 0
+
+    mean_image = np.load("ConvolutionLSTM/mean_image.npy")
 
     while(epoch<MAX_EPOCHS):
       print("Epoch: " + str(epoch))
