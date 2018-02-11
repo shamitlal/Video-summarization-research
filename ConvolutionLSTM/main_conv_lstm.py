@@ -13,7 +13,7 @@ import glob
 from scipy.misc import imread, imsave, imresize
 import sys
 sys.path.append(os.path.abspath('..'))
-print sys.path
+#print sys.path
 from PIL import Image
 
 FLAGS = tf.app.flags.FLAGS
@@ -30,7 +30,7 @@ tf.app.flags.DEFINE_float('weight_init', .1,
                             """weight init for fully connected layers""")
 
 FPS = 3
-BATCH_SIZE = 12
+BATCH_SIZE = 26
 IMAGE_SHAPE = 224
 IMAGE_CHANNELS = 3
 SEQ_LENGTH = 10
@@ -55,7 +55,7 @@ def get_images(frames, mean_image, shape=IMAGE_SHAPE):
 
   images = [(imread(element)) for element in frames]
   images = np.asarray(images) - mean_image
-  print "mean image sum: " + str(np.sum(mean_image))
+  #print "mean image sum: " + str(np.sum(mean_image))
 
   images = np.asarray(images).reshape(SEQ_LENGTH,shape,shape,image_channels)
   print images.shape
@@ -143,7 +143,7 @@ def train():
     gpu_devices = [i for i in range(0,8)]
     device_count = 0
     for i in xrange(SEQ_LENGTH):
-        with tf.device("/cpu:" + str(device_count)):
+        with tf.device("/gpu:" + str(device_count)):
           x_1, hidden = network_template(x_dropout[:,i,:,:,:], hidden)
           x_unwrap.append(x_1)
         device_count+=1
@@ -155,8 +155,10 @@ def train():
     x_unwrap = tf.reshape(x_unwrap,[-1])
 
     print "LABELS SHAPE: " + str(labels)
-    print "X_UNWRAP SHAPE: " + str(x_unwrap)
-    correct_prediction = tf.equal(tf.round(x_unwrap), labels)
+    output_sigmoid = tf.nn.sigmoid(x_unwrap)
+    output_sigmoid = tf.round(output_sigmoid)
+    print "OUTPUT_SIGMOID SHAPE: " + str(output_sigmoid)
+    correct_prediction = tf.equal(output_sigmoid, labels)
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
     
 
@@ -265,7 +267,7 @@ def train():
 
           t = time.time()
           #frame_importance_numpy = np.asarray(frame_importance[start_count:start_count+10]).reshape(-1)
-          _, loss_r, accuracy_r, summary, output = sess.run([train_op, loss, accuracy, tf_tensorboard, x_unwrap],feed_dict={x:dat, labels:dat_label})
+          _, loss_r, accuracy_r, summary, output = sess.run([train_op, loss, accuracy, tf_tensorboard, output_sigmoid],feed_dict={x:dat, labels:dat_label})
           elapsed = time.time() - t
 
 
