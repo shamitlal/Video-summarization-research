@@ -62,7 +62,7 @@ def get_images(frames, mean_image, shape=IMAGE_SHAPE):
   return images
 
 
-def network(inputs, hidden, lstm=True):
+def network(inputs, hidden,hidden_feature_map, lstm=True):
 
 
   conv1_1 = ld.conv_layer(inputs, 3, 1, 16, "encode_1_1")
@@ -79,18 +79,14 @@ def network(inputs, hidden, lstm=True):
   shape = tf.shape(conv2_2)
   with tf.variable_scope('conv_lstm_1', initializer = tf.random_uniform_initializer(-.01, 0.1)):
     cell = BasicConvLSTMCell.BasicConvLSTMCell([shape[1], shape[2]], [3,3], 64)
-    if hidden[0] is None:
-      hidden[0] = cell.zero_state(BATCH_SIZE, tf.float32) 
-    y_1, hidden[0] = cell(conv2_2, hidden[0])
+    y_1, hidden_feature_map[0] = cell(conv2_2, hidden[0])
 
 
   # conv lstm cell 2
   shape = tf.shape(y_1)
   with tf.variable_scope('conv_lstm_2', initializer = tf.random_uniform_initializer(-.01, 0.1)):
     cell = BasicConvLSTMCell.BasicConvLSTMCell([shape[1], shape[2]], [3,3], 64)
-    if hidden[1] is None:
-      hidden[1] = cell.zero_state(BATCH_SIZE, tf.float32) 
-    y_2, hidden[1] = cell(y_1, hidden[1])
+    y_2, hidden_feature_map[1] = cell(y_1, hidden[1])
 
   y_2_pool = tf.nn.max_pool(y_2, [1,3,3,1],strides=[1,2,2,1], padding="SAME")
   #16 x 16 x 64
@@ -111,7 +107,7 @@ def network(inputs, hidden, lstm=True):
   fn2 = ld.fc_layer(fn1, 1024,idx="fc_2")
   output = (ld.fc_layer(fn2, 1, linear = True,idx="fc_3"))
 
-  return output, hidden
+  return output, hidden_feature_map
 
 
 
@@ -129,8 +125,8 @@ def train():
   with tf.Graph().as_default():
     # make inputs
     x = tf.placeholder(tf.float32, [None, SEQ_LENGTH, IMAGE_SHAPE, IMAGE_SHAPE, IMAGE_CHANNELS])
-
     labels = tf.placeholder(tf.float32, [BATCH_SIZE*SEQ_LENGTH])
+    hidden_placeholder = tf.placeholder(tf.float32,[2,BATCH_SIZE,14,14,128])
     # possible dropout inside
     x_dropout = x
 
@@ -138,13 +134,17 @@ def train():
     x_unwrap = []
 
     # conv network
-    hidden = [None for i in range(2)]
+    hidden_feature_map = [None for i in range(2)]
+
+    with tf.device("/gpu:" + str(device_count)):
+        x_1, hidden_feature_map = network_template(x_dropout[:,0,:,:,:], hidden = hidden_placeholder,hidden_feature_map = hidden_feature_map)
+        x_unwrap.append(x_1)
 
     gpu_devices = [i for i in range(0,8)]
     device_count = 0
-    for i in xrange(SEQ_LENGTH):
+    for i in xrange(1,SEQ_LENGTH):
         with tf.device("/gpu:" + str(device_count)):
-          x_1, hidden = network_template(x_dropout[:,i,:,:,:], hidden)
+          x_1, hidden_feature_map = network_template(x_dropout[:,i,:,:,:], hidden = hidden_feature_map,hidden_feature_map = hidden_feature_map)
           x_unwrap.append(x_1)
         device_count+=1
         device_count%=1
@@ -250,6 +250,8 @@ def train():
         #Operating on glob of each individual video
         frame_start_count = 0
 
+        hidden_input = np.zeros((2,BATCH_SIZE,14,14,128),dtype=np.float32)
+
         while frame_start_count+SEQ_LENGTH<mini_len:
           selected_batch = []
           selected_importance_labels = []
@@ -267,8 +269,10 @@ def train():
 
           t = time.time()
           #frame_importance_numpy = np.asarray(frame_importance[start_count:start_count+10]).reshape(-1)
-          _, loss_r, accuracy_r, summary, output = sess.run([train_op, loss, accuracy, tf_tensorboard, output_sigmoid],feed_dict={x:dat, labels:dat_label})
+          _, loss_r, accuracy_r, summary, output, hidden_last_batch = sess.run([train_op, loss, accuracy, tf_tensorboard, output_sigmoid,hidden_feature_map],feed_dict={x:dat, labels:dat_label,hidden_placeholder:hidden_input})
           elapsed = time.time() - t
+
+          hidden_input = hidden_last_batch
 
 
           # Write data to tensorboard
