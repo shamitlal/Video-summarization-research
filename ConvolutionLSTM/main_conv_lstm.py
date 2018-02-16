@@ -35,7 +35,7 @@ IMAGE_SHAPE = 224
 IMAGE_CHANNELS = 3
 SEQ_LENGTH = 10
 LEARNING_RATE = 0.002
-LABEL_WEIGHT = 9
+LABEL_WEIGHT = 1
 #mean_image = np.zeros((224,224,3))
 def get_frame_importance(file_dir):
   f = open(file_dir,"r")
@@ -44,7 +44,7 @@ def get_frame_importance(file_dir):
     tab_separated_values = video_imp.split('\t')
     scores = tab_separated_values[2].split(',')
     i=0
-    final_scores = [(int(score)-1)//3 for score in scores[::10]]
+    final_scores = [(float(score)-1) for score in scores[::10]]
     video_to_frame_importance[tab_separated_values[0]]=final_scores
   return video_to_frame_importance
 
@@ -60,6 +60,42 @@ def get_images(frames, mean_image, shape=IMAGE_SHAPE):
   images = np.asarray(images).reshape(SEQ_LENGTH,shape,shape,image_channels)
   print images.shape
   return images
+
+#label smoothening. Check if smoothening less important frames affect adversialy or not.
+def convert_importance_to_vector(labels):
+  final_importance_vector = []
+  for element in labels:
+    if element==0:
+      element_array = np.asarray([0.6,0.25,0.15,0.0,0.0])
+    elif element==1:
+      element_array = np.asarray([0.20,0.6,0.20,0.0,0.0])
+    elif element==2:
+      element_array = np.asarray([0.0,0.30,0.60,0.10,0.0])
+    elif element==3:
+      element_array = np.asarray([0.0,0.0,0.10,0.60,0.30])
+    elif element==4:
+      element_array = np.asarray([0.0,0.0,0.0,0.35,0.65])
+    final_importance_vector.append(element_array) 
+  final_importance_vector = np.asarray(final_importance_vector).reshape((-1,5))
+  return final_importance_vector
+
+def compute_weights_array(labels):
+  final_weight_vector = []
+  for element in labels:
+    if element==0:
+      element_weight = 1
+    elif element==1:
+      element_weight = 1
+    elif element==2:
+      element_weight = 1
+    elif element==3:
+      element_weight = 4
+    elif element==4:
+      element_weight = 4
+    final_weight_vector.append(element_weight) 
+  final_weight_vector = np.asarray(final_weight_vector).reshape((-1))
+  return final_weight_vector
+
 
 
 def network(inputs, hidden,hidden_feature_map, lstm=True):
@@ -105,7 +141,7 @@ def network(inputs, hidden,hidden_feature_map, lstm=True):
   
   fn1 = ld.fc_layer(conv4_3, 1024, flat=True,idx="fc_1")
   fn2 = ld.fc_layer(fn1, 1024,idx="fc_2")
-  output = (ld.fc_layer(fn2, 1, linear = True,idx="fc_3"))
+  output = (ld.fc_layer(fn2, 5, linear = True,idx="fc_3"))
 
   return output, hidden_feature_map
 
@@ -125,8 +161,9 @@ def train():
   with tf.Graph().as_default():
     # make inputs
     x = tf.placeholder(tf.float32, [None, SEQ_LENGTH, IMAGE_SHAPE, IMAGE_SHAPE, IMAGE_CHANNELS])
-    labels = tf.placeholder(tf.float32, [BATCH_SIZE*SEQ_LENGTH])
-    hidden_placeholder = tf.placeholder(tf.float32,[2,BATCH_SIZE,14,14,128])
+    labels = tf.placeholder(tf.float64, [BATCH_SIZE*SEQ_LENGTH,5])
+    hidden_placeholder = tf.placeholder(tf.float32,[2,BATCH_SIZE,56,56,128])
+    label_weights = tf.placeholder(tf.float32,[BATCH_SIZE*SEQ_LENGTH])
     # possible dropout inside
     x_dropout = x
 
@@ -135,13 +172,12 @@ def train():
 
     # conv network
     hidden_feature_map = [None for i in range(2)]
-
+    device_count = 0
     with tf.device("/gpu:" + str(device_count)):
         x_1, hidden_feature_map = network_template(x_dropout[:,0,:,:,:], hidden = hidden_placeholder,hidden_feature_map = hidden_feature_map)
         x_unwrap.append(x_1)
 
     gpu_devices = [i for i in range(0,8)]
-    device_count = 0
     for i in xrange(1,SEQ_LENGTH):
         with tf.device("/gpu:" + str(device_count)):
           x_1, hidden_feature_map = network_template(x_dropout[:,i,:,:,:], hidden = hidden_feature_map,hidden_feature_map = hidden_feature_map)
@@ -150,13 +186,14 @@ def train():
         device_count%=1
 
 
-
+    '''
     #SHAPE OF X_WRAP : BATCH_SIZE * SEQ_LENGTH
     x_unwrap = tf.reshape(x_unwrap,[-1])
 
     print "LABELS SHAPE: " + str(labels)
     output_sigmoid = tf.nn.sigmoid(x_unwrap)
     output_sigmoid = tf.round(output_sigmoid)
+    output_sigmoid_int = tf.cast(output_sigmoid,tf.int32)
     print "OUTPUT_SIGMOID SHAPE: " + str(output_sigmoid)
     correct_prediction = tf.equal(output_sigmoid, labels)
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
@@ -166,6 +203,27 @@ def train():
     sigmoid_loss = tf.nn.weighted_cross_entropy_with_logits(targets=labels, logits=x_unwrap,pos_weight=LABEL_WEIGHT)
     print "LOSS SHAPE: "  + str(sigmoid_loss.shape)
     loss = tf.reduce_sum(sigmoid_loss)/BATCH_SIZE
+    '''
+
+
+    x_unwrap = tf.reshape(x_unwrap,[-1, 5])
+
+    print "LABELS SHAPE: " + str(labels)
+    print "X_UNWRAP SHAPE: " + str(x_unwrap)
+    output = tf.argmax(x_unwrap, axis=1)
+    output_integer = tf.cast(output,tf.int64)
+    correct_prediction = tf.equal(output, tf.cast(tf.argmax(labels,1),tf.int64))
+    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+
+    sigmoid_loss = tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=x_unwrap)
+    weighted_sigmoid_loss = sigmoid_loss * label_weights
+    print "LOSS SHAPE: "  + str(weighted_sigmoid_loss.shape)
+    loss = tf.reduce_sum(weighted_sigmoid_loss)/BATCH_SIZE
+
+
+
+
+
     print "LOSS SHAPE: "  + str(loss.shape)
     
     tf.summary.scalar('loss', loss)
@@ -250,7 +308,7 @@ def train():
         #Operating on glob of each individual video
         frame_start_count = 0
 
-        hidden_input = np.zeros((2,BATCH_SIZE,14,14,128),dtype=np.float32)
+        hidden_input = np.zeros((2,BATCH_SIZE,56,56,128),dtype=np.float32)
 
         while frame_start_count+SEQ_LENGTH<mini_len:
           selected_batch = []
@@ -260,16 +318,18 @@ def train():
             selected_batch.append(get_images(selected_frames,mean_image))
             selected_importance_labels.append(this_frame_importance[video_index_num][frame_start_count: frame_start_count+SEQ_LENGTH])
 
+
           frame_start_count += SEQ_LENGTH
           dat = np.asarray(selected_batch).reshape(BATCH_SIZE,SEQ_LENGTH,IMAGE_SHAPE,IMAGE_SHAPE,IMAGE_CHANNELS)
-          dat_label = np.asarray(selected_importance_labels).reshape(-1)
+          dat_label = np.asarray(selected_importance_labels,dtype=np.int32).reshape(-1)
+          dat_label_weights = compute_weights_array(dat_label)
+          dat_label = convert_importance_to_vector(dat_label)
           print "dat shape: " + str(dat.shape)
           print "dat_label shape: " + str(dat_label.shape)
-          print "dat label: " + str(dat_label)
 
           t = time.time()
           #frame_importance_numpy = np.asarray(frame_importance[start_count:start_count+10]).reshape(-1)
-          _, loss_r, accuracy_r, summary, output, hidden_last_batch = sess.run([train_op, loss, accuracy, tf_tensorboard, output_sigmoid,hidden_feature_map],feed_dict={x:dat, labels:dat_label,hidden_placeholder:hidden_input})
+          _, loss_r, accuracy_r, summary, output, hidden_last_batch = sess.run([train_op, loss, accuracy, tf_tensorboard, output_integer,hidden_feature_map],feed_dict={x:dat, labels:dat_label,hidden_placeholder:hidden_input, label_weights: dat_label_weights})
           elapsed = time.time() - t
 
           hidden_input = hidden_last_batch
@@ -280,7 +340,7 @@ def train():
           summary_writer_it += 1
 
           print "MODEL OUTPUT: " + str(output)
-          print "TRUE OUTPUT: " + str(dat_label)
+          print "TRUE OUTPUT: " + str(np.asarray(np.argmax(dat_label,axis=1),dtype=np.int32))
           print "LOSS: " + str(loss_r)
           print "ACCURACY: " + str(accuracy_r)
 
