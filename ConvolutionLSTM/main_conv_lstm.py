@@ -102,12 +102,15 @@ def network(inputs, hidden,hidden_feature_map, lstm=True):
 
 
   conv1_1 = ld.conv_layer(inputs, 3, 1, 16, "encode_1_1")
+  ld.variable_summaries(conv1_1, "conv1_1")
   conv1_2 = tf.nn.max_pool(ld.conv_layer(conv1_1, 3, 1, 16, "encode_1_2"), [1,3,3,1],strides=[1,2,2,1], padding="SAME")
-
+  ld.variable_summaries(conv1_2, "conv1_2")
 
   # conv2
   conv2_1 = ld.conv_layer(conv1_2, 3, 1, 32, "encode_2_1")
+  ld.variable_summaries(conv2_1, "conv2_1")
   conv2_2 = tf.nn.max_pool(ld.conv_layer(conv2_1, 3, 1, 32, "encode_2_2"), [1,3,3,1],strides=[1,2,2,1], padding="SAME")
+  ld.variable_summaries(conv2_2, "conv2_2")
   # 32 x 32 x 128
 
 
@@ -116,6 +119,8 @@ def network(inputs, hidden,hidden_feature_map, lstm=True):
   with tf.variable_scope('conv_lstm_1', initializer = tf.random_uniform_initializer(-.01, 0.1)):
     cell = BasicConvLSTMCell.BasicConvLSTMCell([shape[1], shape[2]], [3,3], 64)
     y_1, hidden_feature_map[0] = cell(conv2_2, hidden[0])
+    ld.variable_summaries(y_1, "y_1")
+    ld.variable_summaries(hidden_feature_map[0], "hidden_feature_map[0]")
 
 
   # conv lstm cell 2
@@ -123,26 +128,36 @@ def network(inputs, hidden,hidden_feature_map, lstm=True):
   with tf.variable_scope('conv_lstm_2', initializer = tf.random_uniform_initializer(-.01, 0.1)):
     cell = BasicConvLSTMCell.BasicConvLSTMCell([shape[1], shape[2]], [3,3], 64)
     y_2, hidden_feature_map[1] = cell(y_1, hidden[1])
+    ld.variable_summaries(y_2, "y_2")
+    ld.variable_summaries(hidden_feature_map[1], "hidden_feature_map[1]")
 
   y_2_pool = tf.nn.max_pool(y_2, [1,3,3,1],strides=[1,2,2,1], padding="SAME")
+  ld.variable_summaries(y_2_pool, "y_2_pool")
   #16 x 16 x 64
 
   # conv3
   conv3_1 = ld.conv_layer(y_2_pool, 3, 1, 128, "encode_3_1")
+  ld.variable_summaries(conv3_1, "conv3_1")
   conv3_2 = tf.nn.max_pool(ld.conv_layer(conv3_1, 3, 1, 128, "encode_3_2"), [1,3,3,1],strides=[1,2,2,1], padding="SAME")
+  ld.variable_summaries(conv3_2, "conv3_2")
   #8 x 8 x 128
 
   # conv4
   conv4_1 = ld.conv_layer(conv3_2, 3, 1, 256, "encode_4_1")
   conv4_2 = tf.nn.max_pool(ld.conv_layer(conv4_1, 3, 1, 256, "encode_4_2"), [1,3,3,1],strides=[1,2,2,1], padding="SAME")
   conv4_3 = tf.nn.max_pool(ld.conv_layer(conv4_2, 3, 1, 256, "encode_4_3"), [1,3,3,1],strides=[1,2,2,1], padding="SAME")
+  ld.variable_summaries(conv4_1, "conv4_1")
+  ld.variable_summaries(conv4_2, "conv4_2")
+  ld.variable_summaries(conv4_3, "conv4_3")
   #4 x 4 x 256
 
   
   fn1 = ld.fc_layer(conv4_3, 1024, flat=True,idx="fc_1")
   fn2 = ld.fc_layer(fn1, 1024,idx="fc_2")
   output = (ld.fc_layer(fn2, 5, linear = True,idx="fc_3"))
-
+  ld.variable_summaries(fn1, "fn1")
+  ld.variable_summaries(fn2, "fn2")
+  ld.variable_summaries(output, "output")
   return output, hidden_feature_map
 
 
@@ -173,13 +188,13 @@ def train():
     # conv network
     hidden_feature_map = [None for i in range(2)]
     device_count = 0
-    with tf.device("/gpu:" + str(device_count)):
+    with tf.device("/cpu:" + str(device_count)):
         x_1, hidden_feature_map = network_template(x_dropout[:,0,:,:,:], hidden = hidden_placeholder,hidden_feature_map = hidden_feature_map)
         x_unwrap.append(x_1)
 
     gpu_devices = [i for i in range(0,8)]
     for i in xrange(1,SEQ_LENGTH):
-        with tf.device("/gpu:" + str(device_count)):
+        with tf.device("/cpu:" + str(device_count)):
           x_1, hidden_feature_map = network_template(x_dropout[:,i,:,:,:], hidden = hidden_feature_map,hidden_feature_map = hidden_feature_map)
           x_unwrap.append(x_1)
         device_count+=1
@@ -248,15 +263,23 @@ def train():
     print("init network from scratch")
     sess.run(init)
 
+
+    # checkpoint_path = os.path.join(FLAGS.train_dir, 'model.ckpt')
+    # saver.save(sess, checkpoint_path, global_step=1)  
+    # print("saved to " + FLAGS.train_dir)
+
+
     #Loading the session
     print(" [*] Reading checkpoint...")
     checkpoint_dir = "./checkpoints/train_store_conv_lstm"
     model_name = "model.ckpt"
     
     ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
+    print("ckpt: " + str(ckpt))
     if ckpt and ckpt.model_checkpoint_path:
         print("Trying to load the session")
         ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
+        print "ckpt_name: " + str(ckpt_name)
         saver.restore(sess, os.path.join(checkpoint_dir, ckpt_name))
         print("Session Loaded")
     else:
@@ -348,7 +371,7 @@ def train():
           saver_step+=1
 
                   
-          if saver_step%5 == 0:
+          if saver_step%1 == 0:
             checkpoint_path = os.path.join(FLAGS.train_dir, 'model.ckpt')
             saver.save(sess, checkpoint_path, global_step=saver_step)  
             print("saved to " + FLAGS.train_dir)
@@ -359,9 +382,9 @@ def train():
 
 
 def main(argv=None):  # pylint: disable=unused-argument
-  if tf.gfile.Exists(FLAGS.train_dir):
-    tf.gfile.DeleteRecursively(FLAGS.train_dir)
-  tf.gfile.MakeDirs(FLAGS.train_dir)
+  #if tf.gfile.Exists(FLAGS.train_dir):
+  #  tf.gfile.DeleteRecursively(FLAGS.train_dir)
+  #tf.gfile.MakeDirs(FLAGS.train_dir)
   train()
 
 
