@@ -131,18 +131,23 @@ def network(inputs, hidden,hidden_feature_map, lstm=True):
   shape = tf.shape(conv2_2)
   conv2_2 = tf.reshape(conv2_2,[26,10,64,64,32])
 
+  hidden_tupple_1 = (hidden[0,:,:,:,0:64] , hidden[0,:,:,:,64:128])
+
+
   with tf.variable_scope('conv_lstm_1', initializer = tf.random_uniform_initializer(-.01, 0.1)):
     cell = BasicConvLSTMCell.ConvLSTMCell([64,64], 64, [3,3])
     #y_1, hidden_feature_map[0] = cell(conv2_2, hidden[0])
-    y_1,hidden_feature_map[0] = tf.nn.dynamic_rnn(cell,conv2_2,sequence_length=[10]*BATCH_SIZE,initial_state=hidden[0],time_major=False,dtype=conv2_2.dtype)
+    y_1,hidden_feature_map[0] = tf.nn.dynamic_rnn(cell,conv2_2,sequence_length=[10]*BATCH_SIZE,initial_state=hidden_tupple_1,time_major=False,dtype=conv2_2.dtype)
 
+
+  hidden_tupple_2 = (hidden[1,:,:,:,0:64] , hidden[1,:,:,:,64:128])
 
   # conv lstm cell 2
   shape = tf.shape(y_1)
   with tf.variable_scope('conv_lstm_2', initializer = tf.random_uniform_initializer(-.01, 0.1)):
     cell = BasicConvLSTMCell.ConvLSTMCell([64,64], 64, [3,3])
     #y_2, hidden_feature_map[1] = cell(y_1, hidden[1])
-    y_2,hidden_feature_map[1] = tf.nn.dynamic_rnn(cell,y_1,sequence_length=[10]*BATCH_SIZE,initial_state=hidden[1],time_major=False,dtype=y_1.dtype)
+    y_2,hidden_feature_map[1] = tf.nn.dynamic_rnn(cell,y_1,sequence_length=[10]*BATCH_SIZE,initial_state=hidden_tupple_2,time_major=False,dtype=y_1.dtype)
 
   shape = tf.shape(y_2)
   y_2 = tf.reshape(y_2,[shape[0]*shape[1],shape[2],shape[3],shape[4]])
@@ -184,7 +189,7 @@ def train():
     # make inputs
     x = tf.placeholder(tf.float32, [BATCH_SIZE, SEQ_LENGTH, IMAGE_SHAPE, IMAGE_SHAPE, IMAGE_CHANNELS])
     labels = tf.placeholder(tf.float64, [BATCH_SIZE*SEQ_LENGTH,5])
-    hidden_placeholder = tf.placeholder(tf.float32,[2,BATCH_SIZE,56,56,128])
+    hidden_placeholder = tf.placeholder(tf.float32,[2,BATCH_SIZE,64,64,64])
     label_weights = tf.placeholder(tf.float32,[BATCH_SIZE*SEQ_LENGTH])
     # possible dropout inside
     x_dropout = x
@@ -245,9 +250,6 @@ def train():
     weighted_sigmoid_loss = sigmoid_loss * label_weights
     print "LOSS SHAPE: "  + str(weighted_sigmoid_loss.shape)
     loss = tf.reduce_sum(weighted_sigmoid_loss)/BATCH_SIZE
-
-
-
 
 
     print "LOSS SHAPE: "  + str(loss.shape)
@@ -334,7 +336,7 @@ def train():
         #Operating on glob of each individual video
         frame_start_count = 0
 
-        hidden_input = np.zeros((2,BATCH_SIZE,56,56,128),dtype=np.float32)
+        hidden_input = np.zeros((2,BATCH_SIZE,64,64,64),dtype=np.float32)
 
         while frame_start_count+SEQ_LENGTH<mini_len:
           selected_batch = []
@@ -358,7 +360,7 @@ def train():
           _, loss_r, accuracy_r, summary, output, hidden_last_batch = sess.run([train_op, loss, accuracy, tf_tensorboard, output_integer,hidden_feature_map],feed_dict={x:dat, labels:dat_label,hidden_placeholder:hidden_input, label_weights: dat_label_weights})
           elapsed = time.time() - t
 
-          hidden_input = hidden_last_batch
+          hidden_input = hidden_last_batch[0] + hidden_last_batch[1]
 
 
           # Write data to tensorboard

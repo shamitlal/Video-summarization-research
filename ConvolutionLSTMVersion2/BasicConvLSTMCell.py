@@ -70,7 +70,7 @@ class ConvLSTMCell(tf.nn.rnn_cell.RNNCell):
 
     state = tf.nn.rnn_cell.LSTMStateTuple(c, h)
 
-    return (h, state)
+    return h, state
 
 
 class ConvGRUCell(tf.nn.rnn_cell.RNNCell):
