@@ -98,67 +98,87 @@ def compute_weights_array(labels):
 
 
 
-def network(inputs, hidden,hidden_feature_map, lstm=True):
+def network(inputs, hidden_0,hidden_1,hidden_2,hidden_3, lstm=True):
 
 
-  conv1_1 = ld.conv_layer(inputs, 3, 1, 16, "encode_1_1")
+  conv1_1 = ld.conv_layer(inputs, 3, 1, 16, "encode_1_1",padding="SAME")
   ld.variable_summaries(conv1_1, "conv1_1")
-  conv1_2 = tf.nn.max_pool(ld.conv_layer(conv1_1, 3, 1, 16, "encode_1_2"), [1,3,3,1],strides=[1,2,2,1], padding="SAME")
+  conv1_2 = ld.conv_layer(conv1_1, 3, 2, 16, "encode_1_2",padding="VALID")
   ld.variable_summaries(conv1_2, "conv1_2")
 
   # conv2
-  conv2_1 = ld.conv_layer(conv1_2, 3, 1, 32, "encode_2_1")
+  conv2_1 = ld.conv_layer(conv1_2, 3, 1, 32, "encode_2_1",padding="SAME")
   ld.variable_summaries(conv2_1, "conv2_1")
-  conv2_2 = tf.nn.max_pool(ld.conv_layer(conv2_1, 3, 1, 32, "encode_2_2"), [1,3,3,1],strides=[1,2,2,1], padding="SAME")
+  conv2_2 = ld.conv_layer(conv2_1, 3, 2, 32, "encode_2_2",padding="VALID")
   ld.variable_summaries(conv2_2, "conv2_2")
-  # 32 x 32 x 128
+
+  # conv3
+  conv3_1 = ld.conv_layer(conv2_2, 3, 1, 64, "encode_3_1",padding="SAME")
+  ld.variable_summaries(conv3_1, "conv3_1")
+  conv3_2 = ld.conv_layer(conv3_1, 3, 2, 64, "encode_3_2", padding="VALID")
+  ld.variable_summaries(conv3_2, "conv3_2")
+  # 28 x 28 x 64
 
 
   # conv lstm cell 1
-  shape = tf.shape(conv2_2)
+  shape = tf.shape(conv3_2)
   with tf.variable_scope('conv_lstm_1', initializer = tf.random_uniform_initializer(-.01, 0.1)):
     cell = BasicConvLSTMCell.BasicConvLSTMCell([shape[1], shape[2]], [3,3], 64)
-    y_1, hidden_feature_map[0] = cell(conv2_2, hidden[0])
+    y_1, hidden_feature_map_0 = cell(conv3_2, hidden_0)
     ld.variable_summaries(y_1, "y_1")
-    ld.variable_summaries(hidden_feature_map[0], "hidden_feature_map[0]")
+    ld.variable_summaries(hidden_feature_map_0, "hidden_feature_map[0]")
+
+  y_1_pool = tf.nn.max_pool(y_1, [1,3,3,1],strides=[1,2,2,1], padding="SAME")
+  ld.variable_summaries(y_1_pool, "y_1_pool")
+  # 14 X 14 X 64
 
 
   # conv lstm cell 2
-  shape = tf.shape(y_1)
+  shape = tf.shape(y_1_pool)
   with tf.variable_scope('conv_lstm_2', initializer = tf.random_uniform_initializer(-.01, 0.1)):
-    cell = BasicConvLSTMCell.BasicConvLSTMCell([shape[1], shape[2]], [3,3], 64)
-    y_2, hidden_feature_map[1] = cell(y_1, hidden[1])
+    cell = BasicConvLSTMCell.BasicConvLSTMCell([shape[1], shape[2]], [3,3], 128)
+    y_2, hidden_feature_map_1 = cell(y_1_pool, hidden_1)
     ld.variable_summaries(y_2, "y_2")
-    ld.variable_summaries(hidden_feature_map[1], "hidden_feature_map[1]")
+    ld.variable_summaries(hidden_feature_map_1, "hidden_feature_map[1]")
 
   y_2_pool = tf.nn.max_pool(y_2, [1,3,3,1],strides=[1,2,2,1], padding="SAME")
   ld.variable_summaries(y_2_pool, "y_2_pool")
-  #16 x 16 x 64
+  #7 x 7 x 128
 
-  # conv3
-  conv3_1 = ld.conv_layer(y_2_pool, 3, 1, 128, "encode_3_1")
-  ld.variable_summaries(conv3_1, "conv3_1")
-  conv3_2 = tf.nn.max_pool(ld.conv_layer(conv3_1, 3, 1, 128, "encode_3_2"), [1,3,3,1],strides=[1,2,2,1], padding="SAME")
-  ld.variable_summaries(conv3_2, "conv3_2")
-  #8 x 8 x 128
 
-  # conv4
-  conv4_1 = ld.conv_layer(conv3_2, 3, 1, 256, "encode_4_1")
-  conv4_2 = tf.nn.max_pool(ld.conv_layer(conv4_1, 3, 1, 256, "encode_4_2"), [1,3,3,1],strides=[1,2,2,1], padding="SAME")
-  conv4_3 = tf.nn.max_pool(ld.conv_layer(conv4_2, 3, 1, 256, "encode_4_3"), [1,3,3,1],strides=[1,2,2,1], padding="SAME")
-  ld.variable_summaries(conv4_1, "conv4_1")
-  ld.variable_summaries(conv4_2, "conv4_2")
-  ld.variable_summaries(conv4_3, "conv4_3")
-  #4 x 4 x 256
+  # conv lstm cell 3
+  shape = tf.shape(y_2_pool)
+  with tf.variable_scope('conv_lstm_3', initializer = tf.random_uniform_initializer(-.01, 0.1)):
+    cell = BasicConvLSTMCell.BasicConvLSTMCell([shape[1], shape[2]], [3,3], 128)
+    y_3, hidden_feature_map_2 = cell(y_2_pool, hidden_2)
+    ld.variable_summaries(y_3, "y_3")
+    ld.variable_summaries(hidden_feature_map_2, "hidden_feature_map[2]")
+
+  y_3_pool = tf.nn.max_pool(y_3, [1,3,3,1],strides=[1,2,2,1], padding="SAME")
+  ld.variable_summaries(y_3_pool, "y_3_pool")
+  #4 x 4 x 128
+
+
+  # conv lstm cell 4
+  shape = tf.shape(y_3_pool)
+  with tf.variable_scope('conv_lstm_2', initializer = tf.random_uniform_initializer(-.01, 0.1)):
+    cell = BasicConvLSTMCell.BasicConvLSTMCell([shape[1], shape[2]], [3,3], 256)
+    y_4, hidden_feature_map_3 = cell(y_3_pool, hidden_3)
+    ld.variable_summaries(y_4, "y_4")
+    ld.variable_summaries(hidden_feature_map_3, "hidden_feature_map[3]")
+
+  y_4_pool = tf.nn.max_pool(y_4, [1,3,3,1],strides=[1,2,2,1], padding="SAME")
+  ld.variable_summaries(y_4_pool, "y_4_pool")
+  #2 x 2 x 256
 
   
-  fn1 = ld.fc_layer(conv4_3, 1024, flat=True,idx="fc_1")
-  fn2 = ld.fc_layer(fn1, 1024,idx="fc_2")
+  fn1 = ld.fc_layer(y_4_pool, 512, flat=True,idx="fc_1")
+  fn2 = ld.fc_layer(fn1, 128,idx="fc_2")
   output = (ld.fc_layer(fn2, 5, linear = True,idx="fc_3"))
   ld.variable_summaries(fn1, "fn1")
   ld.variable_summaries(fn2, "fn2")
   ld.variable_summaries(output, "output")
-  return output, hidden_feature_map
+  return output, hidden_feature_map_0, hidden_feature_map_1, hidden_feature_map_2, hidden_feature_map_3
 
 
 
@@ -177,7 +197,10 @@ def train():
     # make inputs
     x = tf.placeholder(tf.float32, [None, SEQ_LENGTH, IMAGE_SHAPE, IMAGE_SHAPE, IMAGE_CHANNELS])
     labels = tf.placeholder(tf.float64, [BATCH_SIZE*SEQ_LENGTH,5])
-    hidden_placeholder = tf.placeholder(tf.float32,[2,BATCH_SIZE,56,56,128])
+    hidden_placeholder_1 = tf.placeholder(tf.float32,[BATCH_SIZE,28,28,64])
+    hidden_placeholder_2 = tf.placeholder(tf.float32,[BATCH_SIZE,14,14,128])
+    hidden_placeholder_3 = tf.placeholder(tf.float32,[BATCH_SIZE,7,7,128])
+    hidden_placeholder_4 = tf.placeholder(tf.float32,[BATCH_SIZE,4,4,256])
     label_weights = tf.placeholder(tf.float32,[BATCH_SIZE*SEQ_LENGTH])
     # possible dropout inside
     x_dropout = x
@@ -186,16 +209,24 @@ def train():
     x_unwrap = []
 
     # conv network
-    hidden_feature_map = [None for i in range(2)]
+    
     device_count = 0
-    with tf.device("/cpu:" + str(device_count)):
-        x_1, hidden_feature_map = network_template(x_dropout[:,0,:,:,:], hidden = hidden_placeholder,hidden_feature_map = hidden_feature_map)
+    with tf.device("/gpu:" + str(device_count)):
+        x_1, hidden_feature_map_1,hidden_feature_map_2,hidden_feature_map_3,hidden_feature_map_4 = network_template(x_dropout[:,0,:,:,:], 
+          hidden_0 = hidden_placeholder_1,
+          hidden_1 = hidden_placeholder_2,
+          hidden_2 = hidden_placeholder_3,
+          hidden_3 = hidden_placeholder_4)
         x_unwrap.append(x_1)
 
     gpu_devices = [i for i in range(0,8)]
     for i in xrange(1,SEQ_LENGTH):
-        with tf.device("/cpu:" + str(device_count)):
-          x_1, hidden_feature_map = network_template(x_dropout[:,i,:,:,:], hidden = hidden_feature_map,hidden_feature_map = hidden_feature_map)
+        with tf.device("/gpu:" + str(device_count)):
+          x_1, hidden_feature_map_1,hidden_feature_map_2,hidden_feature_map_3,hidden_feature_map_4 = network_template(x_dropout[:,i,:,:,:], 
+            hidden_0 = hidden_feature_map_1,
+            hidden_1 = hidden_feature_map_2,
+            hidden_2 = hidden_feature_map_3,
+            hidden_3 = hidden_feature_map_4)
           x_unwrap.append(x_1)
         device_count+=1
         device_count%=1
@@ -290,7 +321,7 @@ def train():
     print "graph_def: " + str(graph_def)
     tf_tensorboard = tf.summary.merge_all()
     summary_writer = tf.summary.FileWriter("./checkpoints/train_store_conv_lstm",graph_def)
-    summary_writer_it = 0
+    summary_writer_it = 39631
 
 
     MAX_EPOCHS = 10000000
@@ -299,7 +330,7 @@ def train():
 
     labels_map = get_frame_importance("../dataset/Webscope_I4/ydata-tvsum50-v1_1/data/ydata-tvsum50-anno.tsv")
     #loading the epochs
-    saver_step = 0
+    saver_step = 39631
 
     mean_image = np.load("mean_image.npy")
 
@@ -331,7 +362,12 @@ def train():
         #Operating on glob of each individual video
         frame_start_count = 0
 
-        hidden_input = np.zeros((2,BATCH_SIZE,56,56,128),dtype=np.float32)
+        hidden_input_1 = np.zeros((BATCH_SIZE,28,28,64),dtype=np.float32)
+        hidden_input_2 = np.zeros((BATCH_SIZE,14,14,128),dtype=np.float32)
+        hidden_input_3 = np.zeros((BATCH_SIZE,7,7,128),dtype=np.float32)
+        hidden_input_4 = np.zeros((BATCH_SIZE,4,4,256),dtype=np.float32)
+
+        
 
         while frame_start_count+SEQ_LENGTH<mini_len:
           selected_batch = []
@@ -352,10 +388,19 @@ def train():
 
           t = time.time()
           #frame_importance_numpy = np.asarray(frame_importance[start_count:start_count+10]).reshape(-1)
-          _, loss_r, accuracy_r, summary, output, hidden_last_batch = sess.run([train_op, loss, accuracy, tf_tensorboard, output_integer,hidden_feature_map],feed_dict={x:dat, labels:dat_label,hidden_placeholder:hidden_input, label_weights: dat_label_weights})
+          _, loss_r, accuracy_r, summary, output, hidden_last_batch_1, hidden_last_batch_2, hidden_last_batch_3, hidden_last_batch_4 = sess.run([train_op, loss, accuracy, tf_tensorboard, output_integer,hidden_feature_map_1,hidden_feature_map_2,hidden_feature_map_3,hidden_feature_map_4],
+            feed_dict={x:dat, labels:dat_label,
+            hidden_placeholder_1:hidden_input_1,
+            hidden_placeholder_2:hidden_input_2,
+            hidden_placeholder_3:hidden_input_3,
+            hidden_placeholder_4:hidden_input_4, label_weights: dat_label_weights})
+
           elapsed = time.time() - t
 
-          hidden_input = hidden_last_batch
+          hidden_input_1 = hidden_last_batch_1
+          hidden_input_2 = hidden_last_batch_2
+          hidden_input_3 = hidden_last_batch_3
+          hidden_input_4 = hidden_last_batch_4
 
 
           # Write data to tensorboard
@@ -371,7 +416,7 @@ def train():
           saver_step+=1
 
                   
-          if saver_step%1 == 0:
+          if saver_step%5 == 0:
             checkpoint_path = os.path.join(FLAGS.train_dir, 'model.ckpt')
             saver.save(sess, checkpoint_path, global_step=saver_step)  
             print("saved to " + FLAGS.train_dir)

@@ -11,7 +11,7 @@ tf.app.flags.DEFINE_float('weight_decay', 0.0005,
                           """ """)
 
 def variable_summaries(var, var_name):
-  """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
+  """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""  
   with tf.name_scope('summaries'):
     mean = tf.reduce_mean(var)
     tf.summary.scalar('mean_' + var_name, mean)
@@ -76,14 +76,14 @@ def _variable_with_weight_decay(name, shape, stddev, wd):
     tf.add_to_collection('losses', weight_decay)
   return var
 
-def conv_layer(inputs, kernel_size, stride, num_features, idx, linear = False):
+def conv_layer(inputs, kernel_size, stride, num_features, idx, linear = False, padding="SAME"):
   with tf.variable_scope('{0}_conv'.format(idx)) as scope:
     input_channels = inputs.get_shape()[3]
 
     weights = _variable_with_weight_decay('weights', shape=[kernel_size,kernel_size,input_channels,num_features],stddev=0.01, wd=FLAGS.weight_decay)
     biases = _variable_on_cpu('biases',[num_features],tf.constant_initializer(0.01))
 
-    conv = tf.nn.conv2d(inputs, weights, strides=[1, stride, stride, 1], padding='SAME')
+    conv = tf.nn.conv2d(inputs, weights, strides=[1, stride, stride, 1], padding=padding)
     conv_biased = tf.nn.bias_add(conv, biases)
     if linear:
       return conv_biased
