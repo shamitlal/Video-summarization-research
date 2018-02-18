@@ -194,7 +194,10 @@ def network(inputs, hidden_0,hidden_1,hidden_2,hidden_3, lstm=True):
   conv_w2_2, conv_b2_2, conv_w3_1, conv_b3_1, conv_w3_2, conv_b3_2, matrix_1, matrix_2, matrix_3,
   matrix_4, fn1_w, fn1_b, fn2_w, fn2_b, output_w, output_b]
 
-  return output, hidden_feature_map_0, hidden_feature_map_1, hidden_feature_map_2, hidden_feature_map_3, wts_list
+  feature_map_list = [conv1_1,conv1_2,conv2_1,conv2_2,conv3_1,conv3_2,y_1,y_1_pool,y_2,y_2_pool,
+  y_3, y_3_pool,y_4,y_4_pool,fn1,fn2,output]
+
+  return output, hidden_feature_map_0, hidden_feature_map_1, hidden_feature_map_2, hidden_feature_map_3, wts_list, feature_map_list
 
 
 
@@ -226,9 +229,10 @@ def train():
 
     # conv network
     wts_list = []
+    feature_map_list = []
     device_count = 0
     with tf.device("/gpu:" + str(device_count)):
-        x_1, hidden_feature_map_1,hidden_feature_map_2,hidden_feature_map_3,hidden_feature_map_4,_ = network_template(x_dropout[:,0,:,:,:], 
+        x_1, hidden_feature_map_1,hidden_feature_map_2,hidden_feature_map_3,hidden_feature_map_4,_,_ = network_template(x_dropout[:,0,:,:,:], 
           hidden_0 = hidden_placeholder_1,
           hidden_1 = hidden_placeholder_2,
           hidden_2 = hidden_placeholder_3,
@@ -238,7 +242,7 @@ def train():
     gpu_devices = [i for i in range(0,8)]
     for i in xrange(1,SEQ_LENGTH):
         with tf.device("/gpu:" + str(device_count)):
-          x_1, hidden_feature_map_1,hidden_feature_map_2,hidden_feature_map_3,hidden_feature_map_4, wts_list = network_template(x_dropout[:,i,:,:,:], 
+          x_1, hidden_feature_map_1,hidden_feature_map_2,hidden_feature_map_3,hidden_feature_map_4, wts_list, feature_map_list = network_template(x_dropout[:,i,:,:,:], 
             hidden_0 = hidden_feature_map_1,
             hidden_1 = hidden_feature_map_2,
             hidden_2 = hidden_feature_map_3,
@@ -285,13 +289,21 @@ def train():
     loss = tf.reduce_sum(mse_loss)/BATCH_SIZE
 
     grad_list = tf.gradients(loss, wts_list)
+    grad_feature_map_list = tf.gradients(loss, feature_map_list)
+
     grad_list_var_name = ["conv_w1_1","conv_b1_1", "conv_w1_2", "conv_b1_2", "conv_w2_1", "conv_b2_1",
   "conv_w2_2", "conv_b2_2", "conv_w3_1", "conv_b3_1", "conv_w3_2", "conv_b3_2", "matrix_1", "matrix_2", "matrix_3",
   "matrix_4", "fn1_w", "fn1_b", "fn2_w", "fn2_b", "output_w", "output_b"]
 
-    for grad_num in range(0, len(grad_list_var_name)):
-      ld.variable_summaries(grad_list[grad_num], grad_list_var_name[grad_num])
+    feature_map_list_name = ["conv1_1","conv1_2","conv2_1","conv2_2","conv3_1","conv3_2",
+    "y_1","y_1_pool","y_2","y_2_pool","y_3", "y_3_pool","y_4","y_4_pool","fn1","fn2","output"]
 
+    for grad_num in range(0, len(grad_list_var_name)):
+      ld.variable_summaries(grad_list[grad_num], "grad_" + grad_list_var_name[grad_num])
+      ld.variable_summaries(wts_list[grad_num], grad_list_var_name[grad_num])
+
+    for grad_num in range(0,len(feature_map_list_name)):
+      ld.variable_summaries(grad_feature_map_list[grad_num], "grad_"+feature_map_list_name[grad_num])
 
 
     print "LOSS SHAPE: "  + str(loss.shape)
