@@ -80,7 +80,7 @@ def conv_layer(inputs, kernel_size, stride, num_features, idx, linear = False, p
   with tf.variable_scope('{0}_conv'.format(idx)) as scope:
     input_channels = inputs.get_shape()[3]
 
-    weights = _variable_with_weight_decay('weights', shape=[kernel_size,kernel_size,input_channels,num_features],stddev=1.0, wd=FLAGS.weight_decay)
+    weights = _variable_with_weight_decay('weights', shape=[kernel_size,kernel_size,input_channels,num_features],stddev=0.2, wd=FLAGS.weight_decay)
     biases = _variable_on_cpu('biases',[num_features],tf.constant_initializer(0.01))
 
     conv = tf.nn.conv2d(inputs, weights, strides=[1, stride, stride, 1], padding=padding)
@@ -105,7 +105,7 @@ def fc_layer(inputs, hiddens, idx, flat = False, linear = False):
       dim = input_shape[1]
       inputs_processed = inputs
     inputs_processed = tf.nn.dropout(inputs_processed, keep_prob=0.5)
-    weights = _variable_with_weight_decay('weights', shape=[dim,hiddens],stddev=1.0, wd=FLAGS.weight_decay)
+    weights = _variable_with_weight_decay('weights', shape=[dim,hiddens],stddev=0.2, wd=FLAGS.weight_decay)
     biases = _variable_on_cpu('biases', [hiddens], tf.constant_initializer(FLAGS.weight_init))
     if linear:
       return tf.add(tf.matmul(inputs_processed,weights),biases,name=str(idx)+'_fc'), weights, biases
