@@ -88,8 +88,8 @@ def conv_layer(inputs, kernel_size, stride, num_features, idx, linear = False, p
     if linear:
       return conv_biased
     #batchnorm should be before elu
-    #conv_rect_batch_norm = tf.contrib.layers.batch_norm(conv_biased,decay=0.9,epsilon=1e-5,scale=True,updates_collections=None)
-    conv_rect_batch_norm = conv_biased
+    conv_rect_batch_norm = tf.contrib.layers.batch_norm(conv_biased,decay=0.9,epsilon=1e-5,scale=True,updates_collections=None)
+    #conv_rect_batch_norm = conv_biased
     conv_rect = tf.nn.leaky_relu(conv_rect_batch_norm,name='{0}_conv'.format(idx), alpha=0.2)
     return conv_rect, weights, biases
 

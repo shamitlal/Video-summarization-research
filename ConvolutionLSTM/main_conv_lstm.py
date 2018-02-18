@@ -30,7 +30,7 @@ tf.app.flags.DEFINE_float('weight_init', .1,
                             """weight init for fully connected layers""")
 
 FPS = 3
-BATCH_SIZE = 1
+BATCH_SIZE = 12
 IMAGE_SHAPE = 224
 IMAGE_CHANNELS = 3
 SEQ_LENGTH = 30
@@ -454,7 +454,7 @@ def train():
           saver_step+=1
 
                   
-          if saver_step%5 == 0:
+          if saver_step%50 == 0:
             checkpoint_path = os.path.join(FLAGS.train_dir, 'model.ckpt')
             saver.save(sess, checkpoint_path, global_step=saver_step)  
             print("saved to " + FLAGS.train_dir)
