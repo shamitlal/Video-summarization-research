@@ -44,7 +44,7 @@ def get_frame_importance(file_dir):
     tab_separated_values = video_imp.split('\t')
     scores = tab_separated_values[2].split(',')
     i=0
-    final_scores = [min(3.0,(float(score)-1)) for score in scores[::10]]
+    final_scores = [min(2.0,(float(score)-1)) for score in scores[::10]]
     gaussian_scores = np.random.normal(final_scores,0.3)
     final_scores_gaussian = []
     for score,score_gaussian in zip(final_scores,gaussian_scores):
@@ -114,21 +114,21 @@ def compute_weights_array(labels):
 def network(inputs, hidden_0,hidden_1,hidden_2,hidden_3, lstm=True):
 
 
-  conv1_1 = ld.conv_layer(inputs, 3, 1, 16, "encode_1_1",padding="SAME")
+  conv1_1, conv_w1_1, conv_b1_1 = ld.conv_layer(inputs, 3, 1, 16, "encode_1_1",padding="SAME")
   ld.variable_summaries(conv1_1, "conv1_1")
-  conv1_2 = ld.conv_layer(conv1_1, 3, 2, 16, "encode_1_2",padding="SAME")
+  conv1_2, conv_w1_2, conv_b1_2 = ld.conv_layer(conv1_1, 3, 2, 16, "encode_1_2",padding="SAME")
   ld.variable_summaries(conv1_2, "conv1_2")
 
   # conv2
-  conv2_1 = ld.conv_layer(conv1_2, 3, 1, 32, "encode_2_1",padding="SAME")
+  conv2_1, conv_w2_1, conv_b2_1 = ld.conv_layer(conv1_2, 3, 1, 32, "encode_2_1",padding="SAME")
   ld.variable_summaries(conv2_1, "conv2_1")
-  conv2_2 = ld.conv_layer(conv2_1, 3, 2, 32, "encode_2_2",padding="SAME")
+  conv2_2, conv_w2_2, conv_b2_2 = ld.conv_layer(conv2_1, 3, 2, 32, "encode_2_2",padding="SAME")
   ld.variable_summaries(conv2_2, "conv2_2")
 
   # conv3
-  conv3_1 = ld.conv_layer(conv2_2, 3, 1, 64, "encode_3_1",padding="SAME")
+  conv3_1, conv_w3_1, conv_b3_1 = ld.conv_layer(conv2_2, 3, 1, 64, "encode_3_1",padding="SAME")
   ld.variable_summaries(conv3_1, "conv3_1")
-  conv3_2 = ld.conv_layer(conv3_1, 3, 2, 64, "encode_3_2", padding="SAME")
+  conv3_2, conv_w3_2, conv_b3_2 = ld.conv_layer(conv3_1, 3, 2, 64, "encode_3_2", padding="SAME")
   ld.variable_summaries(conv3_2, "conv3_2")
   # 28 x 28 x 64
 
@@ -137,7 +137,7 @@ def network(inputs, hidden_0,hidden_1,hidden_2,hidden_3, lstm=True):
   shape = tf.shape(conv3_2)
   with tf.variable_scope('conv_lstm_1', initializer = tf.random_uniform_initializer(-.01, 0.1)):
     cell = BasicConvLSTMCell.BasicConvLSTMCell([shape[1], shape[2]], [3,3], 64)
-    y_1, hidden_feature_map_0 = cell(conv3_2, hidden_0)
+    y_1, hidden_feature_map_0, matrix_1 = cell(conv3_2, hidden_0)
     ld.variable_summaries(y_1, "y_1")
     ld.variable_summaries(hidden_feature_map_0, "hidden_feature_map[0]")
 
@@ -150,7 +150,7 @@ def network(inputs, hidden_0,hidden_1,hidden_2,hidden_3, lstm=True):
   shape = tf.shape(y_1_pool)
   with tf.variable_scope('conv_lstm_2', initializer = tf.random_uniform_initializer(-.01, 0.1)):
     cell = BasicConvLSTMCell.BasicConvLSTMCell([shape[1], shape[2]], [3,3], 128)
-    y_2, hidden_feature_map_1 = cell(y_1_pool, hidden_1)
+    y_2, hidden_feature_map_1, matrix_2 = cell(y_1_pool, hidden_1)
     ld.variable_summaries(y_2, "y_2")
     ld.variable_summaries(hidden_feature_map_1, "hidden_feature_map[1]")
 
@@ -163,7 +163,7 @@ def network(inputs, hidden_0,hidden_1,hidden_2,hidden_3, lstm=True):
   shape = tf.shape(y_2_pool)
   with tf.variable_scope('conv_lstm_3', initializer = tf.random_uniform_initializer(-.01, 0.1)):
     cell = BasicConvLSTMCell.BasicConvLSTMCell([shape[1], shape[2]], [3,3], 128)
-    y_3, hidden_feature_map_2 = cell(y_2_pool, hidden_2)
+    y_3, hidden_feature_map_2, matrix_3 = cell(y_2_pool, hidden_2)
     ld.variable_summaries(y_3, "y_3")
     ld.variable_summaries(hidden_feature_map_2, "hidden_feature_map[2]")
 
@@ -176,7 +176,7 @@ def network(inputs, hidden_0,hidden_1,hidden_2,hidden_3, lstm=True):
   shape = tf.shape(y_3_pool)
   with tf.variable_scope('conv_lstm_4', initializer = tf.random_uniform_initializer(-.01, 0.1)):
     cell = BasicConvLSTMCell.BasicConvLSTMCell([shape[1], shape[2]], [3,3], 256)
-    y_4, hidden_feature_map_3 = cell(y_3_pool, hidden_3)
+    y_4, hidden_feature_map_3, matrix_4 = cell(y_3_pool, hidden_3)
     ld.variable_summaries(y_4, "y_4")
     ld.variable_summaries(hidden_feature_map_3, "hidden_feature_map[3]")
 
@@ -184,13 +184,17 @@ def network(inputs, hidden_0,hidden_1,hidden_2,hidden_3, lstm=True):
   ld.variable_summaries(y_4_pool, "y_4_pool")
   #2 x 2 x 256
   
-  fn1 = ld.fc_layer(y_4_pool, 512, flat=True,idx="fc_1")
-  fn2 = ld.fc_layer(fn1, 128,idx="fc_2")
-  output = (ld.fc_layer(fn2, 1, linear = True,idx="fc_3"))
+  fn1, fn1_w, fn1_b = ld.fc_layer(y_4_pool, 512, flat=True,idx="fc_1")
+  fn2, fn2_w, fn2_b = ld.fc_layer(fn1, 128,idx="fc_2")
+  output, output_w, output_b = (ld.fc_layer(fn2, 1, linear = True,idx="fc_3"))
   ld.variable_summaries(fn1, "fn1")
   ld.variable_summaries(fn2, "fn2")
   ld.variable_summaries(output, "output")
-  return output, hidden_feature_map_0, hidden_feature_map_1, hidden_feature_map_2, hidden_feature_map_3
+  wts_list = [conv_w1_1, conv_b1_1, conv_w1_2, conv_b1_2, conv_w2_1, conv_b2_1,
+  conv_w2_2, conv_b2_2, conv_w3_1, conv_b3_1, conv_w3_2, conv_b3_2, matrix_1, matrix_2, matrix_3,
+  matrix_4, fn1_w, fn1_b, fn2_w, fn2_b, output_w, output_b]
+
+  return output, hidden_feature_map_0, hidden_feature_map_1, hidden_feature_map_2, hidden_feature_map_3, wts_list
 
 
 
@@ -221,10 +225,10 @@ def train():
     x_unwrap = []
 
     # conv network
-    
+    wts_list = []
     device_count = 0
     with tf.device("/gpu:" + str(device_count)):
-        x_1, hidden_feature_map_1,hidden_feature_map_2,hidden_feature_map_3,hidden_feature_map_4 = network_template(x_dropout[:,0,:,:,:], 
+        x_1, hidden_feature_map_1,hidden_feature_map_2,hidden_feature_map_3,hidden_feature_map_4,_ = network_template(x_dropout[:,0,:,:,:], 
           hidden_0 = hidden_placeholder_1,
           hidden_1 = hidden_placeholder_2,
           hidden_2 = hidden_placeholder_3,
@@ -234,7 +238,7 @@ def train():
     gpu_devices = [i for i in range(0,8)]
     for i in xrange(1,SEQ_LENGTH):
         with tf.device("/gpu:" + str(device_count)):
-          x_1, hidden_feature_map_1,hidden_feature_map_2,hidden_feature_map_3,hidden_feature_map_4 = network_template(x_dropout[:,i,:,:,:], 
+          x_1, hidden_feature_map_1,hidden_feature_map_2,hidden_feature_map_3,hidden_feature_map_4, wts_list = network_template(x_dropout[:,i,:,:,:], 
             hidden_0 = hidden_feature_map_1,
             hidden_1 = hidden_feature_map_2,
             hidden_2 = hidden_feature_map_3,
@@ -280,7 +284,13 @@ def train():
     print "LOSS SHAPE: "  + str(mse_loss.shape)
     loss = tf.reduce_sum(mse_loss)/BATCH_SIZE
 
+    grad_list = tf.gradients(loss, wts_list)
+    grad_list_var_name = ["conv_w1_1","conv_b1_1", "conv_w1_2", "conv_b1_2", "conv_w2_1", "conv_b2_1",
+  "conv_w2_2", "conv_b2_2", "conv_w3_1", "conv_b3_1", "conv_w3_2", "conv_b3_2", "matrix_1", "matrix_2", "matrix_3",
+  "matrix_4", "fn1_w", "fn1_b", "fn2_w", "fn2_b", "output_w", "output_b"]
 
+    for grad_num in range(0, len(grad_list_var_name)):
+      ld.variable_summaries(grad_list[grad_num], grad_list_var_name[grad_num])
 
 
 
