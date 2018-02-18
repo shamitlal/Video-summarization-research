@@ -30,10 +30,10 @@ tf.app.flags.DEFINE_float('weight_init', .1,
                             """weight init for fully connected layers""")
 
 FPS = 3
-BATCH_SIZE = 26
+BATCH_SIZE = 1
 IMAGE_SHAPE = 224
 IMAGE_CHANNELS = 3
-SEQ_LENGTH = 10
+SEQ_LENGTH = 30
 LEARNING_RATE = 0.002
 LABEL_WEIGHT = 1
 #mean_image = np.zeros((224,224,3))
@@ -44,8 +44,19 @@ def get_frame_importance(file_dir):
     tab_separated_values = video_imp.split('\t')
     scores = tab_separated_values[2].split(',')
     i=0
-    final_scores = [(float(score)-1) for score in scores[::10]]
-    video_to_frame_importance[tab_separated_values[0]]=final_scores
+    final_scores = [min(3.0,(float(score)-1)) for score in scores[::10]]
+    gaussian_scores = np.random.normal(final_scores,0.3)
+    final_scores_gaussian = []
+    for score,score_gaussian in zip(final_scores,gaussian_scores):
+      if score_gaussian < score:
+        score_gaussian = max(score_gaussian,score-0.49)
+      elif score_gaussian>score:
+        score_gaussian = min(score_gaussian,score+0.49)
+      final_scores_gaussian.append(score_gaussian)
+
+    final_scores_gaussian = np.asarray(final_scores_gaussian)
+    video_to_frame_importance[tab_separated_values[0]]=final_scores_gaussian
+    
   return video_to_frame_importance
 
 def get_images(frames, mean_image, shape=IMAGE_SHAPE):
@@ -92,6 +103,8 @@ def compute_weights_array(labels):
       element_weight = 4
     elif element==4:
       element_weight = 4
+    else:
+      element_weight = 1
     final_weight_vector.append(element_weight) 
   final_weight_vector = np.asarray(final_weight_vector).reshape((-1))
   return final_weight_vector
@@ -103,19 +116,19 @@ def network(inputs, hidden_0,hidden_1,hidden_2,hidden_3, lstm=True):
 
   conv1_1 = ld.conv_layer(inputs, 3, 1, 16, "encode_1_1",padding="SAME")
   ld.variable_summaries(conv1_1, "conv1_1")
-  conv1_2 = ld.conv_layer(conv1_1, 3, 2, 16, "encode_1_2",padding="VALID")
+  conv1_2 = ld.conv_layer(conv1_1, 3, 2, 16, "encode_1_2",padding="SAME")
   ld.variable_summaries(conv1_2, "conv1_2")
 
   # conv2
   conv2_1 = ld.conv_layer(conv1_2, 3, 1, 32, "encode_2_1",padding="SAME")
   ld.variable_summaries(conv2_1, "conv2_1")
-  conv2_2 = ld.conv_layer(conv2_1, 3, 2, 32, "encode_2_2",padding="VALID")
+  conv2_2 = ld.conv_layer(conv2_1, 3, 2, 32, "encode_2_2",padding="SAME")
   ld.variable_summaries(conv2_2, "conv2_2")
 
   # conv3
   conv3_1 = ld.conv_layer(conv2_2, 3, 1, 64, "encode_3_1",padding="SAME")
   ld.variable_summaries(conv3_1, "conv3_1")
-  conv3_2 = ld.conv_layer(conv3_1, 3, 2, 64, "encode_3_2", padding="VALID")
+  conv3_2 = ld.conv_layer(conv3_1, 3, 2, 64, "encode_3_2", padding="SAME")
   ld.variable_summaries(conv3_2, "conv3_2")
   # 28 x 28 x 64
 
@@ -161,7 +174,7 @@ def network(inputs, hidden_0,hidden_1,hidden_2,hidden_3, lstm=True):
 
   # conv lstm cell 4
   shape = tf.shape(y_3_pool)
-  with tf.variable_scope('conv_lstm_2', initializer = tf.random_uniform_initializer(-.01, 0.1)):
+  with tf.variable_scope('conv_lstm_4', initializer = tf.random_uniform_initializer(-.01, 0.1)):
     cell = BasicConvLSTMCell.BasicConvLSTMCell([shape[1], shape[2]], [3,3], 256)
     y_4, hidden_feature_map_3 = cell(y_3_pool, hidden_3)
     ld.variable_summaries(y_4, "y_4")
@@ -170,11 +183,10 @@ def network(inputs, hidden_0,hidden_1,hidden_2,hidden_3, lstm=True):
   y_4_pool = tf.nn.max_pool(y_4, [1,3,3,1],strides=[1,2,2,1], padding="SAME")
   ld.variable_summaries(y_4_pool, "y_4_pool")
   #2 x 2 x 256
-
   
   fn1 = ld.fc_layer(y_4_pool, 512, flat=True,idx="fc_1")
   fn2 = ld.fc_layer(fn1, 128,idx="fc_2")
-  output = (ld.fc_layer(fn2, 5, linear = True,idx="fc_3"))
+  output = (ld.fc_layer(fn2, 1, linear = True,idx="fc_3"))
   ld.variable_summaries(fn1, "fn1")
   ld.variable_summaries(fn2, "fn2")
   ld.variable_summaries(output, "output")
@@ -196,11 +208,11 @@ def train():
   with tf.Graph().as_default():
     # make inputs
     x = tf.placeholder(tf.float32, [None, SEQ_LENGTH, IMAGE_SHAPE, IMAGE_SHAPE, IMAGE_CHANNELS])
-    labels = tf.placeholder(tf.float64, [BATCH_SIZE*SEQ_LENGTH,5])
-    hidden_placeholder_1 = tf.placeholder(tf.float32,[BATCH_SIZE,28,28,64])
-    hidden_placeholder_2 = tf.placeholder(tf.float32,[BATCH_SIZE,14,14,128])
-    hidden_placeholder_3 = tf.placeholder(tf.float32,[BATCH_SIZE,7,7,128])
-    hidden_placeholder_4 = tf.placeholder(tf.float32,[BATCH_SIZE,4,4,256])
+    labels = tf.placeholder(tf.float32, [BATCH_SIZE*SEQ_LENGTH])
+    hidden_placeholder_1 = tf.placeholder(tf.float32,[BATCH_SIZE,28,28,128])
+    hidden_placeholder_2 = tf.placeholder(tf.float32,[BATCH_SIZE,14,14,256])
+    hidden_placeholder_3 = tf.placeholder(tf.float32,[BATCH_SIZE,7,7,256])
+    hidden_placeholder_4 = tf.placeholder(tf.float32,[BATCH_SIZE,4,4,512])
     label_weights = tf.placeholder(tf.float32,[BATCH_SIZE*SEQ_LENGTH])
     # possible dropout inside
     x_dropout = x
@@ -252,19 +264,21 @@ def train():
     '''
 
 
-    x_unwrap = tf.reshape(x_unwrap,[-1, 5])
+    x_unwrap = tf.reshape(x_unwrap,[-1])
 
     print "LABELS SHAPE: " + str(labels)
     print "X_UNWRAP SHAPE: " + str(x_unwrap)
-    output = tf.argmax(x_unwrap, axis=1)
+    output = tf.round(x_unwrap)
     output_integer = tf.cast(output,tf.int64)
-    correct_prediction = tf.equal(output, tf.cast(tf.argmax(labels,1),tf.int64))
+    correct_prediction = tf.equal(output_integer, tf.cast(tf.round(labels),tf.int64))
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-    sigmoid_loss = tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=x_unwrap)
-    weighted_sigmoid_loss = sigmoid_loss * label_weights
-    print "LOSS SHAPE: "  + str(weighted_sigmoid_loss.shape)
-    loss = tf.reduce_sum(weighted_sigmoid_loss)/BATCH_SIZE
+
+    #sigmoid_loss = tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=x_unwrap)
+    mse_loss = tf.squared_difference(labels,x_unwrap)
+    #weighted_sigmoid_loss = sigmoid_loss * label_weights
+    print "LOSS SHAPE: "  + str(mse_loss.shape)
+    loss = tf.reduce_sum(mse_loss)/BATCH_SIZE
 
 
 
@@ -321,7 +335,7 @@ def train():
     print "graph_def: " + str(graph_def)
     tf_tensorboard = tf.summary.merge_all()
     summary_writer = tf.summary.FileWriter("./checkpoints/train_store_conv_lstm",graph_def)
-    summary_writer_it = 39631
+    summary_writer_it = 0
 
 
     MAX_EPOCHS = 10000000
@@ -330,7 +344,7 @@ def train():
 
     labels_map = get_frame_importance("../dataset/Webscope_I4/ydata-tvsum50-v1_1/data/ydata-tvsum50-anno.tsv")
     #loading the epochs
-    saver_step = 39631
+    saver_step = 0
 
     mean_image = np.load("mean_image.npy")
 
@@ -362,10 +376,10 @@ def train():
         #Operating on glob of each individual video
         frame_start_count = 0
 
-        hidden_input_1 = np.zeros((BATCH_SIZE,28,28,64),dtype=np.float32)
-        hidden_input_2 = np.zeros((BATCH_SIZE,14,14,128),dtype=np.float32)
-        hidden_input_3 = np.zeros((BATCH_SIZE,7,7,128),dtype=np.float32)
-        hidden_input_4 = np.zeros((BATCH_SIZE,4,4,256),dtype=np.float32)
+        hidden_input_1 = np.zeros((BATCH_SIZE,28,28,128),dtype=np.float32)
+        hidden_input_2 = np.zeros((BATCH_SIZE,14,14,256),dtype=np.float32)
+        hidden_input_3 = np.zeros((BATCH_SIZE,7,7,256),dtype=np.float32)
+        hidden_input_4 = np.zeros((BATCH_SIZE,4,4,512),dtype=np.float32)
 
         
 
@@ -380,9 +394,9 @@ def train():
 
           frame_start_count += SEQ_LENGTH
           dat = np.asarray(selected_batch).reshape(BATCH_SIZE,SEQ_LENGTH,IMAGE_SHAPE,IMAGE_SHAPE,IMAGE_CHANNELS)
-          dat_label = np.asarray(selected_importance_labels,dtype=np.int32).reshape(-1)
+          dat_label = np.asarray(selected_importance_labels,dtype=np.float32).reshape(-1)
           dat_label_weights = compute_weights_array(dat_label)
-          dat_label = convert_importance_to_vector(dat_label)
+          #dat_label = convert_importance_to_vector(dat_label)
           print "dat shape: " + str(dat.shape)
           print "dat_label shape: " + str(dat_label.shape)
 
@@ -408,7 +422,9 @@ def train():
           summary_writer_it += 1
 
           print "MODEL OUTPUT: " + str(output)
-          print "TRUE OUTPUT: " + str(np.asarray(np.argmax(dat_label,axis=1),dtype=np.int32))
+          #print "TRUE OUTPUT: " + str(np.asarray(np.argmax(dat_label,axis=1),dtype=np.int32))
+          print "TRUE OUTPUT: " + str(np.asarray(np.round(dat_label),dtype=np.int32))
+          
           print "LOSS: " + str(loss_r)
           print "ACCURACY: " + str(accuracy_r)
 

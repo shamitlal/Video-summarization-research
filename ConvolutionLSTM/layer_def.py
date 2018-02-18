@@ -12,7 +12,7 @@ tf.app.flags.DEFINE_float('weight_decay', 0.0005,
 
 def variable_summaries(var, var_name):
   """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""  
-  with tf.name_scope('summaries'):
+  with tf.name_scope('summaries') and tf.device("/cpu:0"):
     mean = tf.reduce_mean(var)
     tf.summary.scalar('mean_' + var_name, mean)
     with tf.name_scope('stddev'):
