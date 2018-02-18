@@ -83,7 +83,7 @@ class BasicConvLSTMCell(ConvRNNCell):
         c, h = state
       else:
         c, h = tf.split(axis=3, num_or_size_splits=2, value=state)
-      concat = _conv_linear([inputs, h], self.filter_size, self.num_features * 4, True)
+      concat, matrix = _conv_linear([inputs, h], self.filter_size, self.num_features * 4, True)
 
       # i = input_gate, j = new_input, f = forget_gate, o = output_gate
       i, j, f, o = tf.split(axis=3, num_or_size_splits=4, value=concat)
@@ -96,7 +96,7 @@ class BasicConvLSTMCell(ConvRNNCell):
         new_state = LSTMStateTuple(new_c, new_h)
       else:
         new_state = tf.concat(axis=3, values=[new_c, new_h])
-      return new_h, new_state
+      return new_h, new_state, matrix
 
 def _conv_linear(args, filter_size, num_features, bias, bias_start=0.0, scope=None):
   """convolution:
@@ -140,5 +140,5 @@ def _conv_linear(args, filter_size, num_features, bias, bias_start=0.0, scope=No
         dtype=dtype,
         initializer=tf.constant_initializer(
             bias_start, dtype=dtype))
-  return res + bias_term
+  return res + bias_term, matrix
 
