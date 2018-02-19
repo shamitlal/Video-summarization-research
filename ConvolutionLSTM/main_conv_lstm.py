@@ -47,9 +47,9 @@ def get_frame_importance(file_dir):
     final_scores=[]
     for score_i in scores:
       if score_i==0 or score_i==1:
-        final_scores.append(score_i)
+        final_scores.append(0)
       else:
-        final_scores.append(score_i)
+        final_scores.append(1)
     '''
     gaussian_scores = np.random.normal(final_scores,0.3)
     final_scores_gaussian = []
