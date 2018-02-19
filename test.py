@@ -38,15 +38,15 @@ def get_frame_importance(file_dir):
     scores = tab_separated_values[2].split(',')
     i=0
     final_scores=list()
-    if not os.path.isdir("dataset/video_frames/Webscope_I4/"):
-        os.mkdir("dataset/video_frames/Webscope_I4/")
-    frame_input_path = "dataset/video_frames/Webscope_I4/"
+    if not os.path.isdir("dataset/video_frames/Webscope_I4_6/"):
+        os.mkdir("dataset/video_frames/Webscope_I4_6/")
+    frame_input_path = "dataset/video_frames/Webscope_I4_6/"
     
     if video_map[tab_separated_values[0]]==0:
         for index,frame in enumerate(os.listdir("dataset/video_frames/Webscope_all/" + tab_separated_values[0])):
             if frame[0] == '.':
                 continue
-            if index%10==0:
+            if index%5==0:
                 dirr = "dataset/video_frames/Webscope_all/" + tab_separated_values[0] + "/" + frame
                 image = np.asarray(Image.open(dirr))
                 image = imresize(image,(224,224,3))
@@ -95,7 +95,7 @@ def generate_mean_image(file_dir):
 
 
 if __name__=='__main__':
-    #get_frame_importance(("dataset/Webscope_I4/ydata-tvsum50-v1_1/data/ydata-tvsum50-anno.tsv"))
+    get_frame_importance(("dataset/Webscope_I4/ydata-tvsum50-v1_1/data/ydata-tvsum50-anno.tsv"))
     #get_frame_importance()
     #print_label_count("dataset/Webscope_I4/ydata-tvsum50-v1_1/data/ydata-tvsum50-anno.tsv")
-    generate_mean_image("./dataset/video_frames/Webscope_I4/")
+    #generate_mean_image("./dataset/video_frames/Webscope_I4/")
