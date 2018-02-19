@@ -44,7 +44,7 @@ def get_frame_importance(file_dir):
     tab_separated_values = video_imp.split('\t')
     scores = tab_separated_values[2].split(',')
     i=0
-    final_scores = [float(score)-1)/2.0 for score in scores[::10]]
+    final_scores = [(float(score)-1)/2.0 for score in scores[::10]]
     '''
     gaussian_scores = np.random.normal(final_scores,0.3)
     final_scores_gaussian = []
