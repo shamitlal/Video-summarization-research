@@ -29,11 +29,11 @@ tf.app.flags.DEFINE_integer('max_step', 200000,
 tf.app.flags.DEFINE_float('weight_init', .1,
                             """weight init for fully connected layers""")
 
-FPS = 3
+FPS = 6
 BATCH_SIZE = 10
 IMAGE_SHAPE = 224
 IMAGE_CHANNELS = 3
-SEQ_LENGTH = 26
+SEQ_LENGTH = 30
 LEARNING_RATE = 0.002
 LABEL_WEIGHT = 1
 #mean_image = np.zeros((224,224,3))
@@ -44,7 +44,7 @@ def get_frame_importance(file_dir):
     tab_separated_values = video_imp.split('\t')
     scores = tab_separated_values[2].split(',')
     i=0
-    f_scores = [(float(score)-1) for score in scores[::10]]
+    f_scores = [(float(score)-1) for score in scores[::5]]
     final_scores = []
     for score_i in f_scores:
       if score_i==0 or score_i==1:
@@ -374,7 +374,7 @@ def train():
 
     MAX_EPOCHS = 10000000
     epoch = 0
-    videos = glob.glob("../dataset/video_frames/Webscope_I4/[!.]*")
+    videos = glob.glob("../dataset/video_frames/Webscope_I4_6/[!.]*")
 
     labels_map = get_frame_importance("../dataset/Webscope_I4/ydata-tvsum50-v1_1/data/ydata-tvsum50-anno.tsv")
     #loading the epochs
