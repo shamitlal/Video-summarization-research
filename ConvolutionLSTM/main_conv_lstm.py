@@ -30,10 +30,10 @@ tf.app.flags.DEFINE_float('weight_init', .1,
                             """weight init for fully connected layers""")
 
 FPS = 3
-BATCH_SIZE = 12
+BATCH_SIZE = 10
 IMAGE_SHAPE = 224
 IMAGE_CHANNELS = 3
-SEQ_LENGTH = 30
+SEQ_LENGTH = 26
 LEARNING_RATE = 0.002
 LABEL_WEIGHT = 1
 #mean_image = np.zeros((224,224,3))
@@ -44,7 +44,8 @@ def get_frame_importance(file_dir):
     tab_separated_values = video_imp.split('\t')
     scores = tab_separated_values[2].split(',')
     i=0
-    final_scores = [min(2.0,(float(score)-1)) for score in scores[::10]]
+    final_scores = [float(score)-1)/2.0 for score in scores[::10]]
+    '''
     gaussian_scores = np.random.normal(final_scores,0.3)
     final_scores_gaussian = []
     for score,score_gaussian in zip(final_scores,gaussian_scores):
@@ -53,8 +54,8 @@ def get_frame_importance(file_dir):
       elif score_gaussian>score:
         score_gaussian = min(score_gaussian,score+0.49)
       final_scores_gaussian.append(score_gaussian)
-
-    final_scores_gaussian = np.asarray(final_scores_gaussian)
+    '''
+    final_scores_gaussian = np.asarray(final_scores)
     video_to_frame_importance[tab_separated_values[0]]=final_scores_gaussian
     
   return video_to_frame_importance
@@ -278,15 +279,16 @@ def train():
     print "X_UNWRAP SHAPE: " + str(x_unwrap)
     output = tf.round(x_unwrap)
     output_integer = tf.cast(output,tf.int64)
-    correct_prediction = tf.equal(output_integer, tf.cast(tf.round(labels),tf.int64))
+    correct_prediction = tf.equal(output_integer, tf.cast(labels,tf.int64))
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 
     #sigmoid_loss = tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=x_unwrap)
-    mse_loss = tf.squared_difference(labels,x_unwrap)
+    #mse_loss = tf.squared_difference(labels,x_unwrap)
+    sigmoid_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=labels, logits=x_unwrap)
     #weighted_sigmoid_loss = sigmoid_loss * label_weights
-    print "LOSS SHAPE: "  + str(mse_loss.shape)
-    loss = tf.reduce_sum(mse_loss)/BATCH_SIZE
+    print "LOSS SHAPE: "  + str(sigmoid_loss.shape)
+    loss = tf.reduce_sum(sigmoid_loss)/BATCH_SIZE
 
     grad_list = tf.gradients(loss, wts_list)
     grad_feature_map_list = tf.gradients(loss, feature_map_list)
