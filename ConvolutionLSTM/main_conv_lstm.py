@@ -44,7 +44,12 @@ def get_frame_importance(file_dir):
     tab_separated_values = video_imp.split('\t')
     scores = tab_separated_values[2].split(',')
     i=0
-    final_scores = [(float(score)-1)/2.0 for score in scores[::10]]
+    final_scores=[]
+    for score_i in scores:
+      if score_i==0 or score_i==1:
+        final_scores.append(score_i)
+      else:
+        final_scores.append(score_i)
     '''
     gaussian_scores = np.random.normal(final_scores,0.3)
     final_scores_gaussian = []
@@ -277,11 +282,15 @@ def train():
 
     print "LABELS SHAPE: " + str(labels)
     print "X_UNWRAP SHAPE: " + str(x_unwrap)
-    output = tf.round(x_unwrap)
-    output_integer = tf.cast(output,tf.int64)
+
+    # output = tf.round(x_unwrap)
+    # output_integer = tf.cast(output,tf.int64)
+    # correct_prediction = tf.equal(output_integer, tf.cast(labels,tf.int64))
+    # accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+    output = tf.sigmoid(x_unwrap)
+    output_integer = tf.cast(tf.round(output), tf.int64)
     correct_prediction = tf.equal(output_integer, tf.cast(labels,tf.int64))
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-
 
     #sigmoid_loss = tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=x_unwrap)
     #mse_loss = tf.squared_difference(labels,x_unwrap)
