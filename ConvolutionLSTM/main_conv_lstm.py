@@ -34,7 +34,7 @@ BATCH_SIZE = 10
 IMAGE_SHAPE = 224
 IMAGE_CHANNELS = 3
 SEQ_LENGTH = 26
-LEARNING_RATE = 0.002
+LEARNING_RATE = 0.08
 LABEL_WEIGHT = 1
 #mean_image = np.zeros((224,224,3))
 def get_frame_importance(file_dir):
@@ -44,8 +44,9 @@ def get_frame_importance(file_dir):
     tab_separated_values = video_imp.split('\t')
     scores = tab_separated_values[2].split(',')
     i=0
-    final_scores=[]
-    for score_i in scores:
+    f_scores = [(float(score)-1) for score in scores[::10]]
+    final_scores = []
+    for score_i in f_scores:
       if score_i==0 or score_i==1:
         final_scores.append(0)
       else:
