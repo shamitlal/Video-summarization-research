@@ -430,7 +430,7 @@ def train():
 
           t = time.time()
           #frame_importance_numpy = np.asarray(frame_importance[start_count:start_count+10]).reshape(-1)
-          _, loss_r, accuracy_r, summary, output, hidden_last_batch_1, hidden_last_batch_2, hidden_last_batch_3, hidden_last_batch_4 = sess.run([train_op, loss, accuracy, tf_tensorboard, output_integer,hidden_feature_map_1,hidden_feature_map_2,hidden_feature_map_3,hidden_feature_map_4],
+          _, loss_r, accuracy_r, summary, output, hidden_last_batch_1, hidden_last_batch_2, hidden_last_batch_3, hidden_last_batch_4 = sess.run([train_op, loss, accuracy, tf_tensorboard, output,hidden_feature_map_1,hidden_feature_map_2,hidden_feature_map_3,hidden_feature_map_4],
             feed_dict={x:dat, labels:dat_label,
             hidden_placeholder_1:hidden_input_1,
             hidden_placeholder_2:hidden_input_2,
