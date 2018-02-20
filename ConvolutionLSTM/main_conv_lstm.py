@@ -287,7 +287,7 @@ def train():
     correct_prediction = tf.equal(output, tf.cast(labels,tf.int64))
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-    sigmoid_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels, logits=x_unwrap)
+    sigmoid_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=tf.cast(labels,tf.int64), logits=x_unwrap)
     #mse_loss = tf.squared_difference(labels,x_unwrap)
     #sigmoid_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=labels, logits=x_unwrap)
     #weighted_sigmoid_loss = sigmoid_loss * label_weights
