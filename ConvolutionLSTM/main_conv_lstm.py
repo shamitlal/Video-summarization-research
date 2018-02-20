@@ -44,13 +44,7 @@ def get_frame_importance(file_dir):
     tab_separated_values = video_imp.split('\t')
     scores = tab_separated_values[2].split(',')
     i=0
-    f_scores = [(float(score)-1) for score in scores[::5]]
-    final_scores = []
-    for score_i in f_scores:
-      if score_i==0 or score_i==1:
-        final_scores.append(0)
-      else:
-        final_scores.append(1)
+    final_scores = [min(2.0,(float(score)-1)) for score in scores[::5]]
     '''
     gaussian_scores = np.random.normal(final_scores,0.3)
     final_scores_gaussian = []
@@ -112,6 +106,7 @@ def compute_weights_array(labels):
       element_weight = 4
     else:
       element_weight = 1
+    element_weight = 1
     final_weight_vector.append(element_weight) 
   final_weight_vector = np.asarray(final_weight_vector).reshape((-1))
   return final_weight_vector
@@ -193,7 +188,7 @@ def network(inputs, hidden_0,hidden_1,hidden_2,hidden_3, lstm=True):
   
   fn1, fn1_w, fn1_b = ld.fc_layer(y_4_pool, 512, flat=True,idx="fc_1")
   fn2, fn2_w, fn2_b = ld.fc_layer(fn1, 128,idx="fc_2")
-  output, output_w, output_b = (ld.fc_layer(fn2, 1, linear = True,idx="fc_3"))
+  output, output_w, output_b = (ld.fc_layer(fn2, 3, linear = True,idx="fc_3"))
   ld.variable_summaries(fn1, "fn1")
   ld.variable_summaries(fn2, "fn2")
   ld.variable_summaries(output, "output")
@@ -279,7 +274,7 @@ def train():
     '''
 
 
-    x_unwrap = tf.reshape(x_unwrap,[-1])
+    x_unwrap = tf.reshape(x_unwrap,[-1,3])
 
     print "LABELS SHAPE: " + str(labels)
     print "X_UNWRAP SHAPE: " + str(x_unwrap)
@@ -288,14 +283,13 @@ def train():
     # output_integer = tf.cast(output,tf.int64)
     # correct_prediction = tf.equal(output_integer, tf.cast(labels,tf.int64))
     # accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-    output = tf.sigmoid(x_unwrap)
-    output_integer = tf.cast(tf.round(output), tf.int64)
-    correct_prediction = tf.equal(output_integer, tf.cast(labels,tf.int64))
+    output = tf.cast(tf.argmax(x_unwrap, axis=1),tf.int64)
+    correct_prediction = tf.equal(output, tf.cast(labels,tf.int64))
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-    #sigmoid_loss = tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=x_unwrap)
+    sigmoid_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels, logits=x_unwrap)
     #mse_loss = tf.squared_difference(labels,x_unwrap)
-    sigmoid_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=labels, logits=x_unwrap)
+    #sigmoid_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=labels, logits=x_unwrap)
     #weighted_sigmoid_loss = sigmoid_loss * label_weights
     print "LOSS SHAPE: "  + str(sigmoid_loss.shape)
     loss = tf.reduce_sum(sigmoid_loss)/BATCH_SIZE
