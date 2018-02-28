@@ -76,14 +76,16 @@ def _variable_with_weight_decay(name, shape, stddev, wd):
   #   tf.add_to_collection('losses', weight_decay)
   return var
 
-def conv_layer(inputs, kernel_size, stride, num_features, idx,dilation, linear = False, padding="SAME"):
+def conv_layer(inputs, kernel_size, stride, num_features,idx,dilation=1,padding="SAME",linear=False):
+
+  
   with tf.variable_scope('{0}_conv'.format(idx)) as scope:
     input_channels = inputs.get_shape()[3]
 
     weights = _variable_with_weight_decay('weights', shape=[kernel_size,kernel_size,input_channels,num_features],stddev=0.2, wd=FLAGS.weight_decay)
     biases = _variable_on_cpu('biases',[num_features],tf.constant_initializer(0.01))
 
-    conv = tf.nn.conv2d(inputs, weights, strides=[1, stride, stride, 1], dilation=dilation, padding=padding)
+    conv = tf.nn.convolution(inputs,weights,strides=[stride, stride],dilation_rate=[dilation,dilation],padding=padding)
     conv_biased = tf.nn.bias_add(conv, biases)
     if linear:
       return conv_biased
@@ -116,12 +118,12 @@ def fc_layer(inputs, hiddens, idx, flat = False, linear = False):
 
 
 
-def deconv_layer(inputs, kernel_size,output_shape,idx, stride=1,padding="SAME"):
+def deconv_layer(inputs, kernel_size,output_shape,idx, stride=2,padding="SAME"):
     with tf.variable_scope('{0}_deconv'.format(idx)) as scope:
       input_channels = inputs.get_shape()[3]
-
+      
       num_features =  output_shape[-1]
-      weights = _variable_with_weight_decay('weights', shape=[kernel_size,kernel_size,input_channels,num_features],stddev=0.2, wd=FLAGS.weight_decay)
+      weights = _variable_with_weight_decay('weights', shape=[kernel_size,kernel_size,num_features,input_channels],stddev=0.2, wd=FLAGS.weight_decay)
       biases = _variable_on_cpu('biases',[num_features],tf.constant_initializer(0.01))
 
       return tf.nn.conv2d_transpose(inputs, weights, output_shape, [1, stride, stride, 1], padding="SAME") + biases , weights, biases

@@ -1,6 +1,7 @@
-
+from __future__ import division
 import os.path
 import time
+
 
 import numpy as np
 import tensorflow as tf
@@ -30,17 +31,17 @@ tf.app.flags.DEFINE_float('weight_init', .1,
                             """weight init for fully connected layers""")
 
 FPS = 6
-BATCH_SIZE = 10
+BATCH_SIZE = 1
 IMAGE_SHAPE = 224
 IMAGE_CHANNELS = 3
 SEQ_LENGTH = 30
 LEARNING_RATE = 0.002
 LABEL_WEIGHT = 1
-COLOR_FILTERS = 1
+COLOR_FILTERS = 16
 #mean_image = np.zeros((224,224,3))
 
 
-def get_images(frames, mean_image, shape=IMAGE_SHAPE,use_mean_image):
+def get_images(frames, mean_image,use_mean_image,convert_to_grey_scale, shape=IMAGE_SHAPE):
   image_rows = shape
   image_columns = shape
   image_channels = IMAGE_CHANNELS
@@ -48,9 +49,14 @@ def get_images(frames, mean_image, shape=IMAGE_SHAPE,use_mean_image):
   images = [(imread(element)) for element in frames]
   if use_mean_image:
     images = np.asarray(images) - mean_image
+    images = np.asarray(images).reshape(SEQ_LENGTH,shape,shape,image_channels)
+
+  if convert_to_grey_scale:
+    images = np.asarray(images)
+    images = np.dot(images[...,:3], [0.299, 0.587, 0.114])
+    images = np.asarray(images).reshape(SEQ_LENGTH,shape,shape,1)
   #print "mean image sum: " + str(np.sum(mean_image))
 
-  images = np.asarray(images).reshape(SEQ_LENGTH,shape,shape,image_channels)
   print images.shape
   return images
 
@@ -61,9 +67,9 @@ def down_sampling_decoders(inputs,scope,hidden_1,hidden_2):
 
 
     #DECODER BLOCK 1
-    conv1_1, conv_w1_1, conv_b1_1 = ld.conv_layer(inputs, 3, 2, 128, dilation=1, "decode_1_1",padding="SAME")
+    conv1_1, conv_w1_1, conv_b1_1 = ld.conv_layer(inputs, 3, 2, 128, "decode_1_1",padding="SAME")
     ld.variable_summaries(conv1_1, scope + "_conv1_1")
-    conv1_2, conv_w1_2, conv_b1_2 = ld.conv_layer(conv1_1, 3, 2, 256, dilation=1, "decode_1_2",padding="SAME")
+    conv1_2, conv_w1_2, conv_b1_2 = ld.conv_layer(conv1_1, 3, 2, 256, "decode_1_2",padding="SAME")
     ld.variable_summaries(conv1_2, scope + "_conv1_2")
     #7 X 7 X 256
 
@@ -83,9 +89,9 @@ def down_sampling_decoders(inputs,scope,hidden_1,hidden_2):
 
 
     #DECODER BLOCK 2
-    conv2_1, conv_w2_1, conv_b2_1 = ld.conv_layer(y_1, 3, 1, 256, dilation=2,"decode_2_1",padding="SAME")
+    conv2_1, conv_w2_1, conv_b2_1 = ld.conv_layer(y_1, 3, 1, 256,"decode_2_1",padding="SAME")
     ld.variable_summaries(conv2_1, scope + "_conv2_1")
-    conv2_2, conv_w2_2, conv_b2_2 = ld.conv_layer(conv2_1, 3, 2, 512,  dilation=2,"decode_2_2",padding="SAME")
+    conv2_2, conv_w2_2, conv_b2_2 = ld.conv_layer(conv2_1, 3, 2, 512,"decode_2_2",padding="SAME")
     ld.variable_summaries(conv2_2, scope + "_conv2_2")
 
     # conv lstm cell 2
@@ -126,11 +132,11 @@ def up_sampling_decoder(inputs,skip_connection_1,skip_connection_2,scope):
     #DECODER BLOCK 1
     shape = tf.shape(inputs)
     output_shape = [shape[0],56,56,64]
-    conv1_1, conv_w1_1, conv_b1_1 = ld.deconv_layer(inputs, 3, output_shape,"decode_1_1",stride=1,padding="SAME")
+    conv1_1, conv_w1_1, conv_b1_1 = ld.deconv_layer(inputs, 3, output_shape,"decode_1_1",stride=2,padding="SAME")
     ld.variable_summaries(conv1_1, scope + "_conv1_1")
     #56 X 56 X 64
     
-    conv1_2, conv_w1_2, conv_b1_2 = ld.conv_layer(conv1_1, 3, 1, 64,dilation=1,"decode_1_2", padding="SAME")
+    conv1_2, conv_w1_2, conv_b1_2 = ld.conv_layer(conv1_1, 3, 1, 64,"decode_1_2", padding="SAME")
     ld.variable_summaries(conv1_2, scope + "_conv1_2")
     #56 X 56 X 64
 
@@ -141,12 +147,12 @@ def up_sampling_decoder(inputs,skip_connection_1,skip_connection_2,scope):
     #DECODER BLOCK 2
     shape = tf.shape(conv1_2)
     output_shape = [shape[0],112,112,32]
-    conv2_1, conv_w2_1, conv_b2_1 = ld.deconv_layer(conv1_2, 3, output_shape,"decode_2_1",stride=1,padding="SAME")
+    conv2_1, conv_w2_1, conv_b2_1 = ld.deconv_layer(conv1_2, 3, output_shape,"decode_2_1",stride=2,padding="SAME")
     ld.variable_summaries(conv2_1, scope + "_conv2_1")
     #112 X 112 X 32
 
     
-    conv2_2, conv_w2_2, conv_b2_2 = ld.conv_layer(conv2_1, 3, 1, 32,dilation=1,"decode_2_2", padding="SAME")
+    conv2_2, conv_w2_2, conv_b2_2 = ld.conv_layer(conv2_1, 3, 1, 32,"decode_2_2", padding="SAME")
     ld.variable_summaries(conv2_2, scope + "_conv2_2")
     #112 X 112 X 32
 
@@ -157,12 +163,12 @@ def up_sampling_decoder(inputs,skip_connection_1,skip_connection_2,scope):
     #DECODER BLOCK 3
     shape = tf.shape(conv2_2)
     output_shape = [shape[0],224,224,16]
-    conv3_1, conv_w3_1, conv_b3_1 = ld.deconv_layer(conv2_2, 3, output_shape,"decode_3_1",stride=1,padding="SAME")
+    conv3_1, conv_w3_1, conv_b3_1 = ld.deconv_layer(conv2_2, 3, output_shape,"decode_3_1",stride=2,padding="SAME")
     ld.variable_summaries(conv3_1, scope + "_conv3_1")
     #224 X 224 X 16
 
     
-    conv3_2, conv_w3_2, conv_b3_2 = ld.conv_layer(conv3_1, 3, 1, COLOR_FILTERS,dilation=1,"decode_3_2", padding="SAME")
+    conv3_2, conv_w3_2, conv_b3_2 = ld.conv_layer(conv3_1, 3, 1, COLOR_FILTERS,"decode_3_2", padding="SAME")
     ld.variable_summaries(conv3_2, scope + "_conv3_2")
     #224 X 224 X COLOR_FILTERS
 
@@ -175,9 +181,9 @@ def up_sampling_decoder(inputs,skip_connection_1,skip_connection_2,scope):
 def network(inputs, hidden_1,hidden_2,hidden_3, lstm=True):
 
     #ENCODER BLOCK 1
-    conv1_1, conv_w1_1, conv_b1_1 = ld.conv_layer(inputs, 3, 1, 16, dilation=1, "encode_1_1",padding="SAME")
+    conv1_1, conv_w1_1, conv_b1_1 = ld.conv_layer(inputs, 3, 1, 16, "encode_1_1",dilation=1,padding="SAME")
     ld.variable_summaries(conv1_1, "conv1_1")
-    conv1_2, conv_w1_2, conv_b1_2 = ld.conv_layer(conv1_1, 3, 2, 32, dilation=1, "encode_1_2",padding="SAME")
+    conv1_2, conv_w1_2, conv_b1_2 = ld.conv_layer(conv1_1, 3, 2, 32, "encode_1_2",dilation=1,padding="SAME")
     ld.variable_summaries(conv1_2, "conv1_2")
 
     # conv lstm cell 1
@@ -198,9 +204,9 @@ def network(inputs, hidden_1,hidden_2,hidden_3, lstm=True):
 
 
     #ENCODER BLOCK 2
-    conv2_1, conv_w2_1, conv_b2_1 = ld.conv_layer(y_1, 3, 1, 32, dilation=2,"encode_2_1",padding="SAME")
+    conv2_1, conv_w2_1, conv_b2_1 = ld.conv_layer(y_1, 3, 1, 32,"encode_2_1",dilation=2,padding="SAME")
     ld.variable_summaries(conv2_1, "conv2_1")
-    conv2_2, conv_w2_2, conv_b2_2 = ld.conv_layer(conv2_1, 3, 2, 64,  dilation=2,"encode_2_2",padding="SAME")
+    conv2_2, conv_w2_2, conv_b2_2 = ld.conv_layer(conv2_1, 3, 2, 64,"encode_2_2",padding="SAME")
     ld.variable_summaries(conv2_2, "conv2_2")
 
     # conv lstm cell 2
@@ -220,9 +226,9 @@ def network(inputs, hidden_1,hidden_2,hidden_3, lstm=True):
 
 
     #ENCODER BLOCK 3
-    conv3_1, conv_w3_1, conv_b3_1 = ld.conv_layer(y_2, 3, 2, 64, dilation=4,"encode_3_1",padding="SAME")
+    conv3_1, conv_w3_1, conv_b3_1 = ld.conv_layer(y_2, 3, 1, 64,"encode_3_1",dilation=4,padding="SAME")
     ld.variable_summaries(conv3_1, "conv3_1")
-    conv3_2, conv_w3_2, conv_b3_2 = ld.conv_layer(conv3_1, 3, 2, 128,dilation=4,"encode_3_2", padding="SAME")
+    conv3_2, conv_w3_2, conv_b3_2 = ld.conv_layer(conv3_1, 3, 2, 128,"encode_3_2", padding="SAME")
     ld.variable_summaries(conv3_2, "conv3_2")
 
     # conv lstm cell 3
@@ -258,7 +264,7 @@ def network(inputs, hidden_1,hidden_2,hidden_3, lstm=True):
     feature_map_list = [conv1_1,conv1_2,conv2_1,conv2_2,conv3_1,conv3_2,y_1,y_2,y_3,lstm_1,lstm_2,lstm_3]
 
 
-    return prednet_output,hidden_feature_map_0, hidden_feature_map_1, hidden_feature_map_2, hidden_feature_map_3,wts_list,feature_map_list
+    return prednet_output,hidden_feature_map_1, hidden_feature_map_2, hidden_feature_map_3,wts_list,feature_map_list
 
 
 
@@ -277,10 +283,10 @@ def train():
   with tf.Graph().as_default():
     # make inputs
     x = tf.placeholder(tf.float32, [None, SEQ_LENGTH, IMAGE_SHAPE, IMAGE_SHAPE, IMAGE_CHANNELS])
-    labels = tf.placeholder(tf.float32, [None, SEQ_LENGTH, IMAGE_SHAPE, IMAGE_SHAPE, IMAGE_CHANNELS])
-    hidden_placeholder_1 = tf.placeholder(tf.float32,[BATCH_SIZE,112,112,32])
-    hidden_placeholder_2 = tf.placeholder(tf.float32,[BATCH_SIZE,56,56,64])
-    hidden_placeholder_3 = tf.placeholder(tf.float32,[BATCH_SIZE,28,28,128])
+    labels = tf.placeholder(tf.float32, [None, SEQ_LENGTH, IMAGE_SHAPE, IMAGE_SHAPE, 1])
+    hidden_placeholder_1 = tf.placeholder(tf.float32,[BATCH_SIZE,112,112,64])
+    hidden_placeholder_2 = tf.placeholder(tf.float32,[BATCH_SIZE,56,56,128])
+    hidden_placeholder_3 = tf.placeholder(tf.float32,[BATCH_SIZE,28,28,256])
     
     x_dropout = x
 
@@ -291,34 +297,41 @@ def train():
     device_count = 0
     with tf.device("/gpu:" + str(device_count)):
         x_1, hidden_feature_map_1,hidden_feature_map_2,hidden_feature_map_3,_,_ = network_template(x_dropout[:,0,:,:,:], 
-          hidden_0 = hidden_placeholder_1,
-          hidden_1 = hidden_placeholder_2,
-          hidden_2 = hidden_placeholder_3)
+          hidden_1 = hidden_placeholder_1,
+          hidden_2 = hidden_placeholder_2,
+          hidden_3 = hidden_placeholder_3)
         x_unwrap.append(x_1)
 
     gpu_devices = [i for i in range(0,8)]
     for i in xrange(1,SEQ_LENGTH):
         with tf.device("/gpu:" + str(device_count)):
           x_1, hidden_feature_map_1,hidden_feature_map_2,hidden_feature_map_3, wts_list, feature_map_list = network_template(x_dropout[:,i,:,:,:], 
-            hidden_0 = hidden_feature_map_1,
-            hidden_1 = hidden_feature_map_2,
-            hidden_2 = hidden_feature_map_3)
+            hidden_1 = hidden_feature_map_1,
+            hidden_2 = hidden_feature_map_2,
+            hidden_3 = hidden_feature_map_3)
           x_unwrap.append(x_1)
         device_count+=1
         device_count%=1
 
-    x_unwrap = tf.reshape(x_unwrap,[-1,SEQ_LENGTH, IMAGE_SHAPE, IMAGE_SHAPE, IMAGE_CHANNELS])
-    tf.summary.image('output_image',x_unwrap)
-    x_unwrap = tf.reshape(x_unwrap,[-1])
-    labels = tf.reshape(labels,[-1])
+    x_unwrap = tf.reshape(x_unwrap,[-1,SEQ_LENGTH, IMAGE_SHAPE, IMAGE_SHAPE, COLOR_FILTERS])
+    print("ARGMAX SHAPE: "+str(tf.argmax(x_unwrap,axis=4).shape))
+    image_to_print = tf.reshape(tf.argmax(x_unwrap,axis=4)*16,[-1, IMAGE_SHAPE, IMAGE_SHAPE, 1]) 
+    print("IMAGE_TO_PRINT SHAPE: "+str(tf.argmax(x_unwrap,axis=4).shape))
+    input_image_to_print = tf.reshape(x,[-1,IMAGE_SHAPE, IMAGE_SHAPE, 3])
+    tf.summary.image('output_image',tf.cast(image_to_print,tf.uint8))
+    tf.summary.image('input_image',tf.cast(input_image_to_print,tf.uint8))
+    x_unwrap = tf.reshape(x_unwrap,[-1,COLOR_FILTERS])
+    reshaped_labels = tf.reshape(labels,[-1])
 
-    print "LABELS SHAPE: " + str(labels.shape)
+    print "LABELS SHAPE: " + str(reshaped_labels.shape)
     print "X_UNWRAP SHAPE: " + str(x_unwrap.shape)
+    print "INPUT SHAPE: " + str(x.shape)
 
-    x_unwrap /= 16
-    labels   /= 16
+    transformed_labels = tf.floordiv(reshaped_labels,16)
+    print("labels: " + str(transformed_labels))
+    print("x_unwrap: " + str(x_unwrap))
 
-    softmax_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels, logits=x_unwrap)
+    softmax_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=tf.cast(transformed_labels,tf.int32), logits=x_unwrap)
     
     print "LOSS SHAPE: "  + str(softmax_loss.shape)
     loss = tf.reduce_sum(softmax_loss)/BATCH_SIZE
@@ -333,15 +346,15 @@ def train():
     feature_map_list_name = ["conv1_1","conv1_2","conv2_1","conv2_2","conv3_1","conv3_2",
     "y_1","lstm_1","y_2","lstm_2","y_3", "lstm_3"]
 
-    for grad_num in range(0, len(grad_list_var_name)):
+    for grad_num in range(0, len(wts_list_var_name)):
       ld.variable_summaries(grad_list[grad_num], "grad_" + wts_list_var_name[grad_num])
       ld.variable_summaries(wts_list[grad_num], wts_list_var_name[grad_num])
 
     for grad_num in range(0,len(feature_map_list_name)):
       ld.variable_summaries(grad_feature_map_list[grad_num], "grad_"+feature_map_list_name[grad_num])
+    
 
-
-    print "LOSS SHAPE: "  + str(loss.shape)
+    print "LOSS : "  + str(loss)
     
     tf.summary.scalar('loss', loss)
 
@@ -393,7 +406,8 @@ def train():
 
     MAX_EPOCHS = 10000000
     epoch = 0
-    videos = glob.glob("../dataset/video_frames/Webscope_I4_6/[!.]*")
+    videos = glob.glob("../dataset/video_frames/Webscope_I4/[!.]*")
+    print(len(videos))
     videos = videos[0:1]
 
     saver_step = 0
@@ -407,7 +421,7 @@ def train():
       start_count = 0
 
       #loading the batches
-      while start_count+BATCH_SIZE<len(videos):
+      while start_count+BATCH_SIZE<=len(videos):
         print "Loading the batches"
         videos_in_iteration = videos[start_count: start_count+BATCH_SIZE]
         start_count += BATCH_SIZE
@@ -426,24 +440,25 @@ def train():
         #Operating on glob of each individual video
         frame_start_count = 0
 
-        hidden_input_1 = np.zeros((BATCH_SIZE,112,112,32),dtype=np.float32)
-        hidden_input_2 = np.zeros((BATCH_SIZE,56,56,64),dtype=np.float32)
-        hidden_input_3 = np.zeros((BATCH_SIZE,28,28,128),dtype=np.float32)
+        hidden_input_1 = np.zeros((BATCH_SIZE,112,112,64),dtype=np.float32)
+        hidden_input_2 = np.zeros((BATCH_SIZE,56,56,128),dtype=np.float32)
+        hidden_input_3 = np.zeros((BATCH_SIZE,28,28,256),dtype=np.float32)
 
         
 
         while frame_start_count+SEQ_LENGTH+1<mini_len:
           selected_batch = []
+          output_selected_batch = []
           for video_index_num in range(0, video_index):
             selected_frames = frame[video_index_num][frame_start_count: frame_start_count+SEQ_LENGTH]
             output_selected_frames = frame[video_index_num][frame_start_count+1: frame_start_count+SEQ_LENGTH+1]
-            selected_batch.append(get_images(selected_frames,mean_image,1))
-            output_selected_batch.append(get_images(output_selected_frames,mean_image,0))
+            selected_batch.append(get_images(selected_frames,mean_image,1,0))
+            output_selected_batch.append(get_images(output_selected_frames,mean_image,0,1))
             
 
           frame_start_count += SEQ_LENGTH
           input_data = np.asarray(selected_batch).reshape(BATCH_SIZE,SEQ_LENGTH,IMAGE_SHAPE,IMAGE_SHAPE,IMAGE_CHANNELS)
-          prednet_output_data = np.asarray(output_selected_batch).reshape(BATCH_SIZE,SEQ_LENGTH,IMAGE_SHAPE,IMAGE_SHAPE,IMAGE_CHANNELS)
+          prednet_output_data = np.asarray(output_selected_batch).reshape(BATCH_SIZE,SEQ_LENGTH,IMAGE_SHAPE,IMAGE_SHAPE,1)
           print("input_data shape: " + str(input_data.shape))
           print("prednet_output_data shape: " + str(prednet_output_data.shape))
           
@@ -452,7 +467,7 @@ def train():
 
           t = time.time()
           #frame_importance_numpy = np.asarray(frame_importance[start_count:start_count+10]).reshape(-1)
-          _, loss_r, summary, model_output, hidden_last_batch_1, hidden_last_batch_2, hidden_last_batch_3 = sess.run([train_op, loss, tf_tensorboard, output,hidden_feature_map_1,hidden_feature_map_2,hidden_feature_map_3],
+          _, loss_r, summary, hidden_last_batch_1, hidden_last_batch_2, hidden_last_batch_3 = sess.run([train_op, loss, tf_tensorboard,hidden_feature_map_1,hidden_feature_map_2,hidden_feature_map_3],
             feed_dict={x:input_data, labels:prednet_output_data,
             hidden_placeholder_1:hidden_input_1,
             hidden_placeholder_2:hidden_input_2,
