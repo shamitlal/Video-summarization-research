@@ -88,11 +88,12 @@ def conv_layer(inputs, kernel_size, stride, num_features,idx,dilation=1,padding=
     conv = tf.nn.convolution(inputs,weights,strides=[stride, stride],dilation_rate=[dilation,dilation],padding=padding)
     conv_biased = tf.nn.bias_add(conv, biases)
     if linear:
-      return conv_biased
+      return conv_biased, weights, biases
     #batchnorm should be before elu
-    conv_rect_batch_norm = tf.contrib.layers.batch_norm(conv_biased,decay=0.9,epsilon=1e-5,scale=True,updates_collections=None)
+    conv_rect_batch_norm = tf.contrib.layers.batch_norm(conv_biased,decay=0.999,epsilon=1e-5,scale=True,updates_collections=None)
     #conv_rect_batch_norm = conv_biased
     conv_rect = tf.nn.leaky_relu(conv_rect_batch_norm,name='{0}_conv'.format(idx), alpha=0.2)
+    #conv_rect = tf.nn.relu(conv_rect_batch_norm)
     return conv_rect, weights, biases
 
 
@@ -118,7 +119,7 @@ def fc_layer(inputs, hiddens, idx, flat = False, linear = False):
 
 
 
-def deconv_layer(inputs, kernel_size,output_shape,idx, stride=2,padding="SAME"):
+def deconv_layer(inputs, kernel_size,output_shape,idx, stride=2,padding="SAME",batch_norm=True,linear=False):
     with tf.variable_scope('{0}_deconv'.format(idx)) as scope:
       input_channels = inputs.get_shape()[3]
       
@@ -126,5 +127,11 @@ def deconv_layer(inputs, kernel_size,output_shape,idx, stride=2,padding="SAME"):
       weights = _variable_with_weight_decay('weights', shape=[kernel_size,kernel_size,num_features,input_channels],stddev=0.2, wd=FLAGS.weight_decay)
       biases = _variable_on_cpu('biases',[num_features],tf.constant_initializer(0.01))
 
-      return tf.nn.conv2d_transpose(inputs, weights, output_shape, [1, stride, stride, 1], padding="SAME") + biases , weights, biases
+      conv2d_transpose = tf.nn.conv2d_transpose(inputs, weights, output_shape, [1, stride, stride, 1], padding="SAME") + biases 
+      if linear==True:
+        return conv2d_transpose,weights,biases
+      if batch_norm==True:
+        conv_rect_batch_norm = tf.contrib.layers.batch_norm(conv2d_transpose,decay=0.999,epsilon=1e-5,scale=True,updates_collections=None)
+        conv_rect_batch_norm = tf.nn.leaky_relu(conv_rect_batch_norm,alpha=0.2)
+      return conv_rect_batch_norm,weights,biases
 

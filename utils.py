@@ -1,10 +1,15 @@
 import skimage
 import skimage.io
 import skimage.transform
+# import numpy as np
+# import os,cv2
+# from time import time
+# from PIL import Image
+import os
 import numpy as np
-import os,cv2
-from time import time
-from PIL import Image
+import random
+import cv2
+
 
 
 # synset = [l.strip() for l in open('synset.txt').readlines()]
@@ -70,7 +75,8 @@ def load_image2(path, height=None, width=None):
 
 def convert_video_to_frames(input_video,output_directory):
     if not os.path.isdir(output_directory):
-        os.mkdir(output_directory)
+        os.system("mkdir -p " + output_directory)
+    print("Hello")
     os.system("ffmpeg -i {0} -vf fps=3 {1}/thumb%04d.jpg -hide_banner".format(input_video,output_directory))
     '''
     if not os.path.isdir(output_directory):
@@ -134,14 +140,46 @@ def get_frame_importance_vector(input_directory,total_frames):
     return frame_importance
 
 
+def sp_noise(image,prob):
+    '''
+    Add salt and pepper noise to image
+    prob: Probability of the noise
+    '''
+    output = np.zeros(image.shape,np.uint8)
+    thres = 1 - prob 
+    for i in range(image.shape[0]):
+        for j in range(image.shape[1]):
+            rdn = random.random()
+            if rdn < prob:
+                output[i][j] = 0
+            elif rdn > thres:
+                output[i][j] = 255
+            else:
+                output[i][j] = image[i][j]
+    return output
 
-def test():
-    img = skimage.io.imread("./test_data/starry_night.jpg")
-    ny = 300
-    nx = img.shape[1] * ny / img.shape[0]
-    img = skimage.transform.resize(img, (ny, nx))
-    skimage.io.imsave("./test_data/test/output.jpg", img)
+
+def test(image_path):
+    img = skimage.io.imread(image_path)
+    ny = 640
+    nx = 360
+    img = cv2.resize(img, (ny, nx))
+    skimage.io.imsave(image_path, img)
 
 
 if __name__ == "__main__":
-    test()
+    for image_name in os.listdir('dataset/tvsum_test_dataset/summary_frames/gzDbaEs1Rlg/'):
+        if image_name[0] == '.':
+            continue
+        test('dataset/tvsum_test_dataset/summary_frames/gzDbaEs1Rlg/' + image_name)
+        #image = cv2.imread('dataset/tvsum_test_dataset/video_frames/video1/' + image_name) # Only for grayscale image
+        #image = np.asarray(image)
+        #print(image.shape)
+        #image = np.dot(image[...,:3], [0.299, 0.587, 0.114])
+        #image = np.asarray(image).reshape(224,224,1)
+        #mean = 0.0   # some constant
+        #std = 1.0    # some constant (standard deviation)
+        #noisy_img = image + np.random.normal(mean, std, image.shape)
+        #noisy_img_clipped = np.clip(noisy_img, 0, 255)
+        #noise_img = sp_noise(image,0.05)
+        #cv2.imwrite('dataset/tvsum_test_dataset/video_frames/video1_black/' + image_name, image)

@@ -9,6 +9,7 @@ from layers import fc,create_conv,variable_summaries
 import utils
 import os
 import time
+from PIL import Image
 '''
     FLOW:
         CapsuleNet.__init__
@@ -84,7 +85,6 @@ class CapsuleNet:
 
 
     def init(self):
-        
         # Get graph inputs
         print("Building the model input")
         self.build_model_input()
@@ -109,8 +109,8 @@ class CapsuleNet:
         #training_operation = slim.learning.create_train_op(self.tf_margin_loss, optimizer,summarize_gradients=True)
 
         # Log value into tensorboard
-        grad_conv_w_1, grad_conv_b_1, grad_conv_w_2, grad_conv_b_2 = tf.gradients(ys=self.tf_margin_loss, 
-            xs=[self.conv_w_1, self.conv_b_1, self.conv_w_2, self.conv_b_2])
+        grad_conv_w_1, grad_conv_b_1 = tf.gradients(ys=self.tf_margin_loss, 
+            xs=[self.conv_w_1, self.conv_b_1])
 
         grad_caps_1 = tf.gradients(ys=self.tf_margin_loss, xs=[tf.get_collection(tf.GraphKeys.VARIABLES, 'CAPSULE1')[0]])
         
@@ -121,12 +121,15 @@ class CapsuleNet:
         tf.summary.scalar('accuracy', self.tf_accuracy)
         variable_summaries(grad_conv_w_1, 'grad_conv_w_1')
         variable_summaries(grad_conv_b_1, 'grad_conv_b_1')
-        variable_summaries(grad_conv_w_2, 'grad_conv_w_2')
-        variable_summaries(grad_conv_b_2, 'grad_conv_b_2')
+        #variable_summaries(grad_conv_w_2, 'grad_conv_w_2')
+        #variable_summaries(grad_conv_b_2, 'grad_conv_b_2')
         variable_summaries(grad_caps_1, 'grad_caps_1')
         variable_summaries(tf.get_collection(tf.GraphKeys.VARIABLES, 'CAPSULE1')[0], 'caps_1')
         variable_summaries(self.caps2_w, 'caps_2_w')
         variable_summaries(grad_caps_w_2, 'grad_caps_w_2')
+        #variable_summaries(self.b_ij, 'b_ij')
+        #variable_summaries(self.c_ij, 'c_ij')
+        
         #self.tf_test = tf.random_uniform([2], minval=0, maxval=None, dtype=tf.float32, seed=None, name="tf_test")
         #bring from model_base
         self.init_session()
@@ -134,7 +137,6 @@ class CapsuleNet:
 
 
     def build_model_input(self):
-        
         # Images image_rows*image_columns*image_channels
         self.tf_images = tf.placeholder(tf.float32, [self.batch_size, self.image_rows, self.image_columns, self.image_channels], name='images')
         self.tf_labels = tf.placeholder(tf.int64, [self.batch_size], name='labels')
@@ -146,21 +148,21 @@ class CapsuleNet:
         conv1, self.conv_w_1, self.conv_b_1 = create_conv('1', self.tf_images, shape1, relu=True, max_pooling=False, padding='VALID')
         
         # Layer 2 : conv2
-        shape2 = (self.conv2_size, self.conv2_size, self.conv1_filters, self.conv2_filters)
-        conv2, self.conv_w_2, self.conv_b_2 = create_conv('2', conv1, shape2, relu=True, max_pooling=False, padding='VALID')
-        
+        #shape2 = (self.conv2_size, self.conv2_size, self.conv1_filters, self.conv2_filters)
+        #conv2, self.conv_w_2, self.conv_b_2 = create_conv('2', conv1, shape2, relu=True, max_pooling=False, padding='VALID')
+
         #Layer 3 : dropout
-        conv2 = tf.nn.dropout(conv2, keep_prob=self.conv_2_dropout)
+        #conv2 = tf.nn.dropout(conv2, keep_prob=self.conv_2_dropout)
 
         # Layer 4 : first capsules layer
         caps1 = conv_caps_layer(
-            input_layer = conv2,
+            input_layer = conv1,
             capsules_size = self.caps1_vec_len, #8
             nb_filters = self.caps1_nb_capsules, #32
             kernel = self.caps1_size) #9
         
         # Layer 5 : second capsules layer used to predict the output
-        caps2, self.caps2_w = fully_connected_caps_layer(
+        caps2,self.caps2_w = fully_connected_caps_layer(
             input_layer=caps1,
             capsules_size=self.caps2_vec_len, #16
             nb_capsules=self.caps2_nb_capsules, #10
@@ -201,7 +203,7 @@ class CapsuleNet:
 
 
     def optimize(self, images, labels, tb_save=True):
-        tensors = [self.tf_optimizer, self.tf_margin_loss, self.tf_accuracy, self.tf_tensorboard, self.absolute_capsules_length,self.cap2_weights]
+        tensors = [self.tf_optimizer, self.tf_margin_loss, self.tf_accuracy, self.tf_tensorboard, self.absolute_capsules_length,self.caps2_w]
         _, loss, acc, summary, absolute_capslen, cap2_weights = self.sess.run(tensors,
             feed_dict={
             self.tf_images: images,
@@ -209,6 +211,7 @@ class CapsuleNet:
         })
 
         print "absolute_capslen: " + str(absolute_capslen)
+
         if tb_save:
             # Write data to tensorboard
             self.train_writer.add_summary(summary, self.train_writer_it)
@@ -317,11 +320,13 @@ class CapsuleNet:
         self.start_time=time.time()
 
         #data_train && data_validation are glob list of file_names
-        data_train,data_validation = utils.generate_and_split_spectograms_for_complete_data('../../dataset/audio')
+        #data_train,data_validation = utils.generate_and_split_spectograms_for_complete_data('../../dataset/audio')
 
         print "Loading validation data"
         #will load the images from file_names for complete validation_set
-        validation_images,validation_labels = utils.load_data(self.image_rows,self.image_columns,self.image_channels,data_validation)
+        #validation_images,validation_labels = utils.load_data(self.image_rows,self.image_columns,self.image_channels,data_validation)
+
+        data_train = [('/Users/duggals/Downloads/one.jpeg',1),('/Users/duggals/Downloads/zero.jpeg',0)]
 
         iterations = (len(data_train))//self.batch_size
         print "length of trainind dataset: " + str(len(data_train))
@@ -342,6 +347,8 @@ class CapsuleNet:
                 print "Loading batch data"
                 images,labels = utils.load_data(self.image_rows,self.image_columns,self.image_channels,train_batch)
                 print "Training batch data size: " + str(len(images))
+                
+                Image.fromarray(images[0]).save("/Users/duggals/Downloads/one_train.jpeg")
                 #print(images)
                 #print(labels)
                 self.optimize(images,labels)

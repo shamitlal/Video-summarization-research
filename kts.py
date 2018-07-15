@@ -1,11 +1,13 @@
 import os
-from collections import defaultdict
-import numpy as np 
-import cv2
-from time import time
-import math
-import utils,vgg19_layer_generator
-from PIL import Image
+# from collections import defaultdict
+# import numpy as np 
+# import cv2
+# from time import time
+# import math
+# import utils,vgg19_layer_generator
+# from PIL import Image
+import utils
+import imageio
 
 infinity = 10000000000
 
@@ -228,13 +230,21 @@ class KTS:
 
 #video3 url : https://www.youtube.com/watch?v=5DkJDWxhu-g
 if __name__=="__main__":
-	
-	for video in os.listdir("dataset/videos"):
+	#frame_importance = utils.get_frame_importance_vector("dataset/true_summaries/video4",367)
+	#print frame_importance
+	#os.system("mkdir -p dataset/tvsum_test_dataset/video_frames")
+	for video in os.listdir("dataset/tvsum_test_dataset/videos"):
 		#if('1' in video or '2' in video):continue
-		if(video[0]=='.'):continue
-		#utils.convert_video_to_frames("dataset/videos/" + video,"dataset/video_ffmpeg")
-		utils.extract_audio_from_video("dataset/videos/",video)
+		#if(video[0]=='.'):continue
+		if(".mp4" in video):
+			utils.convert_video_to_frames("dataset/tvsum_test_dataset/videos/" + video,"dataset/tvsum_test_dataset/video_frames/" + video.split('.')[0])
+		#for video_frame in os.listdir("vsumm_dataset/video_frames/" + video):
+		#	utils.test("vsumm_dataset/video_frames/" + video + '/' + video_frame)
+		
+
+
 		'''
+		#utils.extract_audio_from_video("dataset/videos/",video)
 		vgg19_layer_generator.generateLayersForFramesInGivenVideo("dataset/video_frames/" + video.split('.')[0],"dataset/frame_numpy_arrays")
 		
 		checkpoint = 0

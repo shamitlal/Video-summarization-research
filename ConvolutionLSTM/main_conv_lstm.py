@@ -222,7 +222,7 @@ def train():
     hidden_placeholder_2 = tf.placeholder(tf.float32,[BATCH_SIZE,14,14,256])
     hidden_placeholder_3 = tf.placeholder(tf.float32,[BATCH_SIZE,7,7,256])
     hidden_placeholder_4 = tf.placeholder(tf.float32,[BATCH_SIZE,4,4,512])
-    label_weights = tf.placeholder(tf.float32,[BATCH_SIZE*SEQ_LENGTH])
+    #label_weights = tf.placeholder(tf.float32,[BATCH_SIZE*SEQ_LENGTH])
     # possible dropout inside
     x_dropout = x
 
@@ -423,19 +423,19 @@ def train():
           frame_start_count += SEQ_LENGTH
           dat = np.asarray(selected_batch).reshape(BATCH_SIZE,SEQ_LENGTH,IMAGE_SHAPE,IMAGE_SHAPE,IMAGE_CHANNELS)
           dat_label = np.asarray(selected_importance_labels,dtype=np.float32).reshape(-1)
-          dat_label_weights = compute_weights_array(dat_label)
+          #dat_label_weights = compute_weights_array(dat_label)
           #dat_label = convert_importance_to_vector(dat_label)
           print "dat shape: " + str(dat.shape)
           print "dat_label shape: " + str(dat_label.shape)
 
           t = time.time()
           #frame_importance_numpy = np.asarray(frame_importance[start_count:start_count+10]).reshape(-1)
-          _, loss_r, accuracy_r, summary, output, hidden_last_batch_1, hidden_last_batch_2, hidden_last_batch_3, hidden_last_batch_4 = sess.run([train_op, loss, accuracy, tf_tensorboard, output,hidden_feature_map_1,hidden_feature_map_2,hidden_feature_map_3,hidden_feature_map_4],
+          _, loss_r, accuracy_r, summary, model_output, hidden_last_batch_1, hidden_last_batch_2, hidden_last_batch_3, hidden_last_batch_4 = sess.run([train_op, loss, accuracy, tf_tensorboard, output,hidden_feature_map_1,hidden_feature_map_2,hidden_feature_map_3,hidden_feature_map_4],
             feed_dict={x:dat, labels:dat_label,
             hidden_placeholder_1:hidden_input_1,
             hidden_placeholder_2:hidden_input_2,
             hidden_placeholder_3:hidden_input_3,
-            hidden_placeholder_4:hidden_input_4, label_weights: dat_label_weights})
+            hidden_placeholder_4:hidden_input_4})
 
           elapsed = time.time() - t
 
@@ -449,7 +449,7 @@ def train():
           summary_writer.add_summary(summary, summary_writer_it)
           summary_writer_it += 1
 
-          print "MODEL OUTPUT: " + str(output)
+          print "MODEL OUTPUT: " + str(model_output)
           #print "TRUE OUTPUT: " + str(np.asarray(np.argmax(dat_label,axis=1),dtype=np.int32))
           print "TRUE OUTPUT: " + str(np.asarray(np.round(dat_label),dtype=np.int32))
           
